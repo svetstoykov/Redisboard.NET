@@ -51,12 +51,10 @@ for (int i = 0; i < 2; i++)
 var scope = app.Services.CreateScope();
 var manager = scope.ServiceProvider.GetRequiredService<ILeaderboardManager<Player>>();
 
-manager.AddToLeaderboard(2, playersToAdd.ToArray());
-
 app.MapPost("/", async (Player[] player, ILeaderboardManager<Player> leaderboardManager)
     => await leaderboardManager.AddToLeaderboardAsync(leaderboardId, player));
 
 app.MapGet("/{id}", async (string id, ILeaderboardManager<Player> leaderboardManager)
-    => await leaderboardManager.GetLeaderboardEntityByIdAsync(leaderboardId, id));
+    => await leaderboardManager.GetEntityAndNeighboursByIdAsync(leaderboardId, id));
 
 app.Run();

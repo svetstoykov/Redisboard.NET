@@ -1,31 +1,21 @@
-local cacheKey = KEYS[1]
+local sortedSetCacheKey = KEYS[1]
+local uniqueScoresSortedSetCacheKey = KEYS[2]
 local startIndex = tonumber(ARGV[1])
 local pageSize = tonumber(ARGV[2])
 
 local startRank = startIndex
 local endRank = startRank + pageSize
 
-local allMembers = redis.call('zrevrange', cacheKey, 0, endRank - 1)
+local allMembers = redis.call('zrevrange', sortedSetCacheKey, startRank, endRank)
 
 local result = {}
 
-local previousScore = nil
-local currentRank = 0
-local resultIndex = 0
-
 for i, memberIdentifier in ipairs(allMembers) do
-    local memberScore = redis.call('zscore', cacheKey, memberIdentifier)
+    local memberScore = redis.call('zscore', sortedSetCacheKey, memberIdentifier)
 
-    if memberScore ~= previousScore then
-        currentRank = currentRank + 1
-        previousScore = memberScore
-    end
+    local memberUniqueRank = redis.call('zrank', uniqueScoresSortedSetCacheKey, tostring(memberScore))
 
-    if i >= startIndex then
-        result[resultIndex] = {memberIdentifier, currentRank}
-
-        resultIndex = resultIndex + 1
-    end
+    result[i] = {memberIdentifier, memberUniqueRank}
 end
 
 return result

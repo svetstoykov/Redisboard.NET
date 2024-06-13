@@ -19,48 +19,28 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
     public async Task AddToLeaderboardAsync(
         object leaderboardId,
         TEntity[] entities,
+        bool fireAndForget = false,
         CancellationToken cancellationToken = default)
     {
         var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) = PrepareEntitiesForRedisAddOperation(entities);
-
-        var redisOperations = new List<Task>();
         
-        var batch = _redis.CreateBatch();
-        
-        redisOperations.Add(_redis.SortedSetAddAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardId), sortedSetEntries));
+        if (fireAndForget)
+        {
+            FireAndForgetAddToLeaderboard(
+                leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
+            
+            return;
+        }
 
-        redisOperations.Add(_redis.HashSetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardId), hashSetEntries));
-
-        redisOperations.Add(_redis.SortedSetAddAsync(
-            CacheKey.ForUniqueScoreSortedSet(leaderboardId), uniqueScoreEntries));
-        
-        batch.Execute();
-
-        await Task.WhenAll(redisOperations);
+        await BatchAddToLeaderboardAsync(
+            leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
     }
 
-    public void AddToLeaderboard(object leaderboardId, TEntity[] entities)
-    {
-        var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) = PrepareEntitiesForRedisAddOperation(entities);
-
-        var isServerLive = _redis.Ping();
-        
-        _redis.SortedSetAdd(
-            CacheKey.ForLeaderboardSortedSet(leaderboardId), sortedSetEntries, CommandFlags.FireAndForget);
-        
-        _redis.HashSetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardId), hashSetEntries, CommandFlags.FireAndForget);
-
-        _redis.SortedSetAddAsync(
-            CacheKey.ForUniqueScoreSortedSet(leaderboardId), uniqueScoreEntries, CommandFlags.FireAndForget);
-    }
-
-    public async Task<TEntity> GetLeaderboardEntityByIdAsync(
+    public async Task<TEntity[]> GetEntityAndNeighboursByIdAsync(
         object leaderboardId,
         string id,
-        RankingType rankingType,
+        int offset = 10,
+        RankingType rankingType = default,
         CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
@@ -98,19 +78,59 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             var entity = entities[i];
 
             var redisValueId = new RedisValue(entity.Id);
-            
+
             sortedSetEntries[i] = new SortedSetEntry(redisValueId, entity.Score);
 
             uniqueScores.Add(entity.Score);
 
             var serializedData = new RedisValue(JsonSerializer.Serialize(entity));
-            
+
             hashSetEntries[i] = new HashEntry(redisValueId, serializedData);
         }
-        
+
         var uniqueScoreEntries = uniqueScores
             .Select(score => new SortedSetEntry(score, score)).ToArray();
-        
+
         return (sortedSetEntries, hashSetEntries, uniqueScoreEntries);
+    }
+    
+    private void FireAndForgetAddToLeaderboard(
+        object leaderboardId,
+        SortedSetEntry[] sortedSetEntries,
+        HashEntry[] hashSetEntries,
+        SortedSetEntry[] uniqueScoreSortedSetEntries)
+    {
+        _redis.SortedSetAdd(
+            CacheKey.ForLeaderboardSortedSet(leaderboardId), sortedSetEntries, CommandFlags.FireAndForget);
+
+        _redis.HashSet(
+            CacheKey.ForEntityDataHashSet(leaderboardId), hashSetEntries, CommandFlags.FireAndForget);
+
+        _redis.SortedSetAdd(
+            CacheKey.ForUniqueScoreSortedSet(leaderboardId), uniqueScoreSortedSetEntries, CommandFlags.FireAndForget);
+
+        _redis.Ping();
+    }
+
+    private async Task BatchAddToLeaderboardAsync(
+        object leaderboardId,
+        SortedSetEntry[] sortedSetEntries,
+        HashEntry[] hashSetEntries,
+        SortedSetEntry[] uniqueScoreEntries)
+    {
+        var batch = _redis.CreateBatch();
+
+        var addToSortedSetTask = _redis.SortedSetAddAsync(
+            CacheKey.ForLeaderboardSortedSet(leaderboardId), sortedSetEntries);
+
+        var addToHashSetTask = _redis.HashSetAsync(
+            CacheKey.ForEntityDataHashSet(leaderboardId), hashSetEntries);
+
+        var addToUniqueScoreSortedSetTask = _redis.SortedSetAddAsync(
+            CacheKey.ForUniqueScoreSortedSet(leaderboardId), uniqueScoreEntries);
+
+        batch.Execute();
+
+        await Task.WhenAll(addToSortedSetTask, addToHashSetTask, addToUniqueScoreSortedSetTask);
     }
 }
