@@ -23,12 +23,12 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         CancellationToken cancellationToken = default)
     {
         var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) = PrepareEntitiesForRedisAddOperation(entities);
-        
+
         if (fireAndForget)
         {
             FireAndForgetAddToLeaderboard(
                 leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
-            
+
             return;
         }
 
@@ -43,17 +43,78 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         RankingType rankingType = default,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
-    }
+        var playerIndex = await _redis
+            .SortedSetRankAsync(
+                CacheKey.ForLeaderboardSortedSet(leaderboardId),
+                new RedisValue(id),
+                Order.Descending);
 
-    public async Task<TEntity[]> GetPaginatedLeaderboardAsync(
-        object leaderboardId,
-        int pageIndex,
-        int pageSize,
-        RankingType rankingType = default,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
+        if (playerIndex == null)
+        {
+            return null;
+        }
+
+        var startIndex = playerIndex.Value - offset;
+        var endIndex = playerIndex.Value + offset;
+        if (startIndex < 0)
+        {
+            startIndex = 0;
+        }
+
+        if (rankingType == RankingType.Default)
+        {
+            var entities = await _redis.SortedSetRangeByRankAsync(
+                CacheKey.ForLeaderboardSortedSet(leaderboardId),
+                startIndex,
+                endIndex);
+
+            var playerIdsWithRank = new Dictionary<string, int>();
+            //todo implement dictionary
+        }
+
+        List<RedisKey> keys = [];
+        List<RedisValue> args = [];
+
+        var script = string.Empty;
+
+        switch (rankingType)
+        {
+            case RankingType.DenseRank:
+                script = LuaScript
+                    .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithDenseRank())
+                    .ExecutableScript;
+
+                keys =
+                [
+                    CacheKey.ForLeaderboardSortedSet(leaderboardId),
+                    CacheKey.ForUniqueScoreSortedSet(leaderboardId)
+                ];
+
+                args = [startIndex, playerIndex + offset];
+                break;
+            case RankingType.StandardCompetition or RankingType.ModifiedCompetition:
+                script = LuaScript
+                    .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithDenseRank())
+                    .ExecutableScript;
+
+                keys =
+                [
+                    CacheKey.ForLeaderboardSortedSet(leaderboardId)
+                ];
+
+                args = [startIndex, playerIndex + offset, (int)rankingType];
+                break;
+        }
+
+        var result = await _redis.ScriptEvaluateReadOnlyAsync(
+            script, keys.ToArray(), args.ToArray());
+
+        var playerIdsWithRanking = ((RedisResult[])result ?? [])
+            .Select(r => (string[])r)
+            .ToDictionary(r => r[0], r => int.Parse(r[1]));
+
+        // todo update with data
+        return null;
     }
 
     public async Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
@@ -62,6 +123,11 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         double maxScoreValue,
         RankingType rankingType = default,
         CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task DeleteLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
@@ -93,7 +159,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
         return (sortedSetEntries, hashSetEntries, uniqueScoreEntries);
     }
-    
+
     private void FireAndForgetAddToLeaderboard(
         object leaderboardId,
         SortedSetEntry[] sortedSetEntries,

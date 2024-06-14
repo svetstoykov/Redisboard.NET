@@ -40,22 +40,6 @@ public interface ILeaderboardManager<TEntity>
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves a paginated view of the leaderboard asynchronously.
-    /// </summary>
-    /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
-    /// <param name="pageIndex">The index of the page to retrieve (0-based).</param>
-    /// <param name="pageSize">The size of each page.</param>
-    /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A paginated view of the leaderboard.</returns>
-    Task<TEntity[]> GetPaginatedLeaderboardAsync(
-        object leaderboardId,
-        int pageIndex,
-        int pageSize,
-        RankingType rankingType = default,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Retrieves a subset of the leaderboard based on score range asynchronously.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
@@ -69,5 +53,15 @@ public interface ILeaderboardManager<TEntity>
         double minScoreValue,
         double maxScoreValue,
         RankingType rankingType = default,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the leaderboard by provided Id. If the leaderboard does not exist, nothing happens.
+    /// </summary>
+    /// <param name="leaderboardId"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task DeleteLeaderboardAsync(
+        object leaderboardId,
         CancellationToken cancellationToken = default);
 }

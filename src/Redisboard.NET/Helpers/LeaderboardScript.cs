@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace Redisboard.NET.Helpers;
 
-public static class LuaScript
+internal static class LeaderboardScript
 {
     public static string ForPlayerIdsByRangeWithCompetitionRank()
         => LoadLuaScript("get_player_ids_by_range_competition_rank.lua");
