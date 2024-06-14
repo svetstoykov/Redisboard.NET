@@ -1,6 +1,4 @@
-using Redisboard.NET.DemoAPI;
 using Redisboard.NET.DemoAPI.Models;
-using Redisboard.NET.DemoAPI.Settings;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.IoC;
 
@@ -9,11 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var redisSettings = builder.Configuration
-    .GetSection(nameof(DemoRedisSettings))
-    .Get<DemoRedisSettings>();
-
-builder.Services.AddLeaderboardManager<Player>(redisSettings);
+builder.Services.AddLeaderboardManager<Player>(cfg =>
+{
+    cfg.EndPoints.Add("localhost:60471");
+    cfg.ClientName = "Development";
+    cfg.DefaultDatabase = 0;
+});
 
 var app = builder.Build();
 
