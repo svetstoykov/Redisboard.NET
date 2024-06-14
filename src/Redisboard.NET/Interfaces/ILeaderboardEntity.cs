@@ -19,7 +19,7 @@ public interface ILeaderboardEntity
     /// Gets or sets the rank of the entity in the leaderboard, determined by the specified ranking type, when retrieving the records.
     /// </summary>
     /// <seealso cref="RankingType"/>
-    int Rank { get; set; }
+    long Rank { get; set; }
     
     /// <summary>
     /// Gets or sets the score associated with the entity in the leaderboard.

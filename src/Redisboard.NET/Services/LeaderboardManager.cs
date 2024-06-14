@@ -54,28 +54,30 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             return null;
         }
 
-        var startIndex = playerIndex.Value - offset;
-        var endIndex = playerIndex.Value + offset;
-        if (startIndex < 0)
-        {
-            startIndex = 0;
-        }
+        var startIndex = Math.Max(playerIndex.Value - offset, 0);
 
         if (rankingType == RankingType.Default)
         {
             var entities = await _redis.SortedSetRangeByRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardId),
                 startIndex,
-                endIndex);
+                playerIndex.Value + offset);
 
-            var playerIdsWithRank = new Dictionary<string, int>();
-            //todo implement dictionary
+            var playerIdsWithRank = new Dictionary<string, long>();
+            for (var i = 0; i < entities.Length; i++)
+            {
+                playerIdsWithRank.Add(
+                    entities[i], startIndex + i);
+            }
+
+            return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRank);
         }
 
         List<RedisKey> keys = [];
         List<RedisValue> args = [];
 
         var script = string.Empty;
+        var pageSize = offset * 2;
 
         switch (rankingType)
         {
@@ -90,7 +92,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
                     CacheKey.ForUniqueScoreSortedSet(leaderboardId)
                 ];
 
-                args = [startIndex, playerIndex + offset];
+                args = [startIndex, pageSize];
                 break;
             case RankingType.StandardCompetition or RankingType.ModifiedCompetition:
                 script = LuaScript
@@ -102,7 +104,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
                     CacheKey.ForLeaderboardSortedSet(leaderboardId)
                 ];
 
-                args = [startIndex, playerIndex + offset, (int)rankingType];
+                args = [startIndex, pageSize];
                 break;
         }
 
@@ -111,10 +113,9 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
         var playerIdsWithRanking = ((RedisResult[])result ?? [])
             .Select(r => (string[])r)
-            .ToDictionary(r => r[0], r => int.Parse(r[1]));
+            .ToDictionary(r => r[0], r => long.Parse(r[1]));
 
-        // todo update with data
-        return null;
+        return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRanking);
     }
 
     public async Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
@@ -130,6 +131,36 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
     public Task DeleteLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
+    }
+    
+    private async Task<TEntity[]> GetEntitiesDataAsync(
+        object leaderboardId,
+        Dictionary<string, long> playerIdsWithRank)
+    {
+        var batch = _redis.CreateBatch();
+
+        var dataRetrievalTasks = playerIdsWithRank
+            .Select(p => _redis.HashGetAsync(CacheKey.ForEntityDataHashSet(leaderboardId), p.Key))
+            .ToList();
+
+        batch.Execute();
+
+        await Task.WhenAll(dataRetrievalTasks);
+
+        var leaderboard = new TEntity[playerIdsWithRank.Count];
+        
+        for (var i =0; i < dataRetrievalTasks.Count; i++)
+        {
+            var result = dataRetrievalTasks[i].Result;
+
+            var entity = JsonSerializer.Deserialize<TEntity>(result);
+
+            entity.Rank = playerIdsWithRank[entity.Id];
+
+            leaderboard[i] = entity;
+        }
+
+        return leaderboard;
     }
 
     private static (SortedSetEntry[] sortedSetEntries, HashEntry[] hashSetEntries, SortedSetEntry[] uniqueScoreEntries)

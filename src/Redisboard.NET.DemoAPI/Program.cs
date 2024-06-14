@@ -1,5 +1,6 @@
-using Redisboard.NET.DemoAPI.Helpers;
+using Microsoft.AspNetCore.Mvc;
 using Redisboard.NET.DemoAPI.Models;
+using Redisboard.NET.Enumerations;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.IoC;
 
@@ -25,12 +26,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-await RedisHelper.SeedAsync(app, 1, 200_000);
+// await RedisHelper.SeedAsync(app, 1, 200_000);
 
-app.MapPost("/", async (Player[] player, int leaderboardId, ILeaderboardManager<Player> leaderboardManager)
-    => await leaderboardManager.AddToLeaderboardAsync(leaderboardId, player));
+app.MapPost("/", async (Player[] player, ILeaderboardManager<Player> leaderboardManager)
+    => await leaderboardManager.AddToLeaderboardAsync(1, player));
 
-app.MapGet("/{id}", async (string id, int leaderboardId, ILeaderboardManager<Player> leaderboardManager)
-    => await leaderboardManager.GetEntityAndNeighboursByIdAsync(leaderboardId, id));
+app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
+        [FromRoute] string leaderboardId, 
+        [FromRoute] string id, 
+        [FromQuery] int offset,
+        [FromQuery] RankingType rankingType,
+        ILeaderboardManager<Player> leaderboardManager,
+        CancellationToken cancellationToken) 
+    => await leaderboardManager.GetEntityAndNeighboursByIdAsync(
+        leaderboardId, id, offset, rankingType, cancellationToken));
+
 
 app.Run();

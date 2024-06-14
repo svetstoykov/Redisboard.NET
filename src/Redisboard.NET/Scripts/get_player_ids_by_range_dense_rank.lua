@@ -15,7 +15,7 @@ for i, memberIdentifier in ipairs(allMembers) do
 
     local memberUniqueRank = redis.call('zrevrank', uniqueScoresSortedSetCacheKey, tostring(memberScore))
 
-    result[i] = { memberScore, memberUniqueRank + 1 }
+    result[i] = { memberIdentifier, memberUniqueRank + 1 }
 end
 
 return result
