@@ -1,3 +1,4 @@
+using Redisboard.NET.DemoAPI.Helpers;
 using Redisboard.NET.DemoAPI.Models;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.IoC;
@@ -9,14 +10,13 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddLeaderboardManager<Player>(cfg =>
 {
-    cfg.EndPoints.Add("localhost:60471");
+    cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
     cfg.DefaultDatabase = 0;
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -25,35 +25,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-const int leaderboardId = 1;
+await RedisHelper.SeedAsync(app, 1, 200_000);
 
-var random = new Random();
-var playersToAdd = new List<Player>();
-for (int i = 0; i < 2; i++)
-{
-    for (int j = 0; j < 2; j++)
-    {
-        var generated = new Player()
-        {
-            Id = Guid.NewGuid().ToString(),
-            EntryDate = DateTime.Now,
-            FirstName = $"FirstName_{i}_{j}",
-            LastName = $"LastName_{i}_{j}",
-            Score = random.Next(1, 75000),
-            Username = $"user_{i}_j"
-        };
-        
-        playersToAdd.Add(generated);
-    }
-}
-
-var scope = app.Services.CreateScope();
-var manager = scope.ServiceProvider.GetRequiredService<ILeaderboardManager<Player>>();
-
-app.MapPost("/", async (Player[] player, ILeaderboardManager<Player> leaderboardManager)
+app.MapPost("/", async (Player[] player, int leaderboardId, ILeaderboardManager<Player> leaderboardManager)
     => await leaderboardManager.AddToLeaderboardAsync(leaderboardId, player));
 
-app.MapGet("/{id}", async (string id, ILeaderboardManager<Player> leaderboardManager)
+app.MapGet("/{id}", async (string id, int leaderboardId, ILeaderboardManager<Player> leaderboardManager)
     => await leaderboardManager.GetEntityAndNeighboursByIdAsync(leaderboardId, id));
 
 app.Run();
