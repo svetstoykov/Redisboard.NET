@@ -3,10 +3,9 @@ local startIndex = tonumber(ARGV[1])
 local pageSize = tonumber(ARGV[2])
 local competitionType = tonumber(ARGV[3])
 
-local startRank = startIndex
-local endRank = startRank + pageSize
+local endIndex = startIndex + pageSize
 
-local allMembers = redis.call('zrevrange', cacheKey, startRank, endRank - 1)
+local allMembers = redis.call('zrevrange', cacheKey, startIndex, endIndex)
 
 local result = {}
 

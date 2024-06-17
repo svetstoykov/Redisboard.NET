@@ -3,10 +3,9 @@ local uniqueScoresSortedSetCacheKey = KEYS[2]
 local startIndex = tonumber(ARGV[1])
 local pageSize = tonumber(ARGV[2])
 
-local startRank = startIndex
-local endRank = startRank + pageSize
+local endIndex = startIndex + pageSize
 
-local allMembers = redis.call('zrevrange', sortedSetCacheKey, startRank, endRank)
+local allMembers = redis.call('zrevrange', sortedSetCacheKey, startIndex, endIndex)
 
 local result = {}
 

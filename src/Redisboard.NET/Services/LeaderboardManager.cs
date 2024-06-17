@@ -16,13 +16,14 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         _redis = connectionMultiplexer.GetDatabase();
     }
 
-    public async Task AddToLeaderboardAsync(
+    public async Task AddEnitityToLeaderboardAsync(
         object leaderboardId,
         TEntity[] entities,
         bool fireAndForget = false,
         CancellationToken cancellationToken = default)
     {
-        var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) = PrepareEntitiesForRedisAddOperation(entities);
+        var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) =
+            PrepareEntitiesForLeaderboardAddOperation(entities);
 
         if (fireAndForget)
         {
@@ -38,15 +39,15 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
     public async Task<TEntity[]> GetEntityAndNeighboursByIdAsync(
         object leaderboardId,
-        string id,
+        string entityId,
         int offset = 10,
-        RankingType rankingType = default,
+        RankingType rankingType = RankingType.Default,
         CancellationToken cancellationToken = default)
     {
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardId),
-                new RedisValue(id),
+                new RedisValue(entityId),
                 Order.Descending);
 
         if (playerIndex == null)
@@ -56,64 +57,21 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
         var startIndex = Math.Max(playerIndex.Value - offset, 0);
 
-        if (rankingType == RankingType.Default)
+        var pageSize = playerIndex.Value > offset
+            ? offset * 2
+            : (int)playerIndex.Value + offset;
+
+        var playerIdsWithRanking = rankingType switch
         {
-            var entities = await _redis.SortedSetRangeByRankAsync(
-                CacheKey.ForLeaderboardSortedSet(leaderboardId),
-                startIndex,
-                playerIndex.Value + offset);
-
-            var playerIdsWithRank = new Dictionary<string, long>();
-            for (var i = 0; i < entities.Length; i++)
-            {
-                playerIdsWithRank.Add(
-                    entities[i], startIndex + i);
-            }
-
-            return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRank);
-        }
-
-        List<RedisKey> keys = [];
-        List<RedisValue> args = [];
-
-        var script = string.Empty;
-        var pageSize = offset * 2;
-
-        switch (rankingType)
-        {
-            case RankingType.DenseRank:
-                script = LuaScript
-                    .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithDenseRank())
-                    .ExecutableScript;
-
-                keys =
-                [
-                    CacheKey.ForLeaderboardSortedSet(leaderboardId),
-                    CacheKey.ForUniqueScoreSortedSet(leaderboardId)
-                ];
-
-                args = [startIndex, pageSize];
-                break;
-            case RankingType.StandardCompetition or RankingType.ModifiedCompetition:
-                script = LuaScript
-                    .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithDenseRank())
-                    .ExecutableScript;
-
-                keys =
-                [
-                    CacheKey.ForLeaderboardSortedSet(leaderboardId)
-                ];
-
-                args = [startIndex, pageSize];
-                break;
-        }
-
-        var result = await _redis.ScriptEvaluateReadOnlyAsync(
-            script, keys.ToArray(), args.ToArray());
-
-        var playerIdsWithRanking = ((RedisResult[])result ?? [])
-            .Select(r => (string[])r)
-            .ToDictionary(r => r[0], r => long.Parse(r[1]));
+            RankingType.Default => await GetPlayerIdsWithDefaultRanking(
+                leaderboardId, startIndex, endIndex: playerIndex.Value + offset - 1),
+            RankingType.DenseRank => await GetPlayerIdsWithDenseRanking(
+                leaderboardId, startIndex, pageSize),
+            RankingType.ModifiedCompetition or RankingType.StandardCompetition => await
+                GetPlayerIdsWithCompetitionRanking(
+                    leaderboardId, startIndex, pageSize, (int)rankingType),
+            _ => throw new KeyNotFoundException()
+        };
 
         return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRanking);
     }
@@ -122,8 +80,40 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         object leaderboardId,
         double minScoreValue,
         double maxScoreValue,
-        RankingType rankingType = default,
+        RankingType rankingType = RankingType.Default,
         CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<TEntity> GetEntityDataByIdAsync(object leaderboardId, string entityId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<double> GetEntityScoreByIdAsync(object leaderboardId, string entityId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<long> GetEntityRankByIdAsync(string entityId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task RemoveEntityByIdAsync(string entityId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<long> GetLeaderboardSizeAsync(object leaderboardId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task ClearLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
@@ -132,7 +122,73 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
     {
         throw new NotImplementedException();
     }
-    
+
+    private async Task<Dictionary<string, long>> GetPlayerIdsWithDefaultRanking(
+        object leaderboardId, long startIndex, long endIndex)
+    {
+        var playerIdsWithRanking = new Dictionary<string, long>();
+
+        var entities = await _redis.SortedSetRangeByRankAsync(
+            CacheKey.ForLeaderboardSortedSet(leaderboardId),
+            startIndex,
+            endIndex,
+            Order.Descending);
+
+        var rankForTopPlayer = startIndex + 1;
+        for (var i = 0; i < entities.Length; i++)
+        {
+            playerIdsWithRanking.Add(
+                entities[i], rankForTopPlayer + i);
+        }
+
+        return playerIdsWithRanking;
+    }
+
+    private async Task<Dictionary<string, long>> GetPlayerIdsWithDenseRanking(
+        object leaderboardId, long startIndex, int pageSize)
+    {
+        var script = LuaScript
+            .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithDenseRank())
+            .ExecutableScript;
+
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardId),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardId)
+        ];
+
+        RedisValue[] args = [startIndex, pageSize];
+
+        return await EvaluateScriptToDictionaryAsync(script, keys, args);
+    }
+
+    private async Task<Dictionary<string, long>> GetPlayerIdsWithCompetitionRanking(
+        object leaderboardId, long startIndex, int pageSize, int rankingType)
+    {
+        var script = LuaScript
+            .Prepare(LeaderboardScript.ForPlayerIdsByRangeWithCompetitionRank())
+            .ExecutableScript;
+
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardId)
+        ];
+
+        RedisValue[] args = [startIndex, pageSize, rankingType];
+
+        return await EvaluateScriptToDictionaryAsync(script, keys, args);
+    }
+
+    private async Task<Dictionary<string, long>> EvaluateScriptToDictionaryAsync(
+        string script, RedisKey[] keys, RedisValue[] args)
+    {
+        var results = await _redis.ScriptEvaluateReadOnlyAsync(script, keys.ToArray(), args.ToArray());
+
+        return ((RedisResult[])results ?? [])
+            .Select(r => (string[])r)
+            .ToDictionary(r => r[0], r => long.Parse(r[1]));
+    }
+
     private async Task<TEntity[]> GetEntitiesDataAsync(
         object leaderboardId,
         Dictionary<string, long> playerIdsWithRank)
@@ -148,8 +204,8 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         await Task.WhenAll(dataRetrievalTasks);
 
         var leaderboard = new TEntity[playerIdsWithRank.Count];
-        
-        for (var i =0; i < dataRetrievalTasks.Count; i++)
+
+        for (var i = 0; i < dataRetrievalTasks.Count; i++)
         {
             var result = dataRetrievalTasks[i].Result;
 
@@ -164,7 +220,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
     }
 
     private static (SortedSetEntry[] sortedSetEntries, HashEntry[] hashSetEntries, SortedSetEntry[] uniqueScoreEntries)
-        PrepareEntitiesForRedisAddOperation(IReadOnlyList<TEntity> entities)
+        PrepareEntitiesForLeaderboardAddOperation(IReadOnlyList<TEntity> entities)
     {
         var sortedSetEntries = new SortedSetEntry[entities.Count];
         var hashSetEntries = new HashEntry[entities.Count];

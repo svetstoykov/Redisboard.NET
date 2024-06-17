@@ -29,15 +29,15 @@ app.UseHttpsRedirection();
 // await RedisHelper.SeedAsync(app, 1, 200_000);
 
 app.MapPost("/", async (Player[] player, ILeaderboardManager<Player> leaderboardManager)
-    => await leaderboardManager.AddToLeaderboardAsync(1, player));
+    => await leaderboardManager.AddEnitityToLeaderboardAsync(1, player));
 
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
-        [FromRoute] string leaderboardId, 
-        [FromRoute] string id, 
-        [FromQuery] int offset,
-        [FromQuery] RankingType rankingType,
         ILeaderboardManager<Player> leaderboardManager,
-        CancellationToken cancellationToken) 
+        string leaderboardId, 
+        string id, 
+        int offset,
+        RankingType rankingType = RankingType.Default,
+        CancellationToken cancellationToken = default) 
     => await leaderboardManager.GetEntityAndNeighboursByIdAsync(
         leaderboardId, id, offset, rankingType, cancellationToken));
 
