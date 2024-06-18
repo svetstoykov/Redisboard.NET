@@ -10,7 +10,6 @@ local allMembers = redis.call('zrevrange', cacheKey, startIndex, endIndex)
 local result = {}
 
 for i, memberIdentifier in ipairs(allMembers) do
-
     local memberScore = redis.call('zscore', cacheKey, memberIdentifier)
     local allMembersWithSameScore = redis.call('zrevrangebyscore', cacheKey, memberScore, memberScore, 'limit', 0, -1)
 
@@ -18,18 +17,16 @@ for i, memberIdentifier in ipairs(allMembers) do
     local relativeMemberWithSameScore = "";
 
     if (competitionType == 3) then -- standard competition ranking (SCR)
-        
         -- get first member with same score
         relativeMemberWithSameScore = allMembersWithSameScore[1]
     elseif (competitionType == 4) then -- modified competition ranking (MCR)
-        
         -- get last member with same score
         relativeMemberWithSameScore = allMembersWithSameScore[#allMembersWithSameScore]
     end
 
     memberRank = redis.call('zrevrank', cacheKey, relativeMemberWithSameScore) + 1
 
-    result[i] = {memberIdentifier, memberRank}
+    result[i] = { memberIdentifier, memberRank }
 end
 
 return result

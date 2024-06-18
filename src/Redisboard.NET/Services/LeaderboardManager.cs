@@ -63,14 +63,18 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
         var playerIdsWithRanking = rankingType switch
         {
-            RankingType.Default => await GetPlayerIdsWithDefaultRanking(
-                leaderboardId, startIndex, endIndex: playerIndex.Value + offset - 1),
-            RankingType.DenseRank => await GetPlayerIdsWithDenseRanking(
-                leaderboardId, startIndex, pageSize),
-            RankingType.ModifiedCompetition or RankingType.StandardCompetition => await
-                GetPlayerIdsWithCompetitionRanking(
+            RankingType.Default
+                => await GetPlayerIdsWithDefaultRanking(
+                    leaderboardId, startIndex, endIndex: playerIndex.Value + offset - 1),
+            RankingType.DenseRank
+                => await GetPlayerIdsWithDenseRanking(
+                    leaderboardId, startIndex, pageSize),
+            RankingType.ModifiedCompetition or RankingType.StandardCompetition
+                => await GetPlayerIdsWithCompetitionRanking(
                     leaderboardId, startIndex, pageSize, (int)rankingType),
-            _ => throw new KeyNotFoundException()
+            _ => throw new KeyNotFoundException(
+                $"Ranking type not found! Valid ranking types are: " +
+                $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(type => $"{type} ({(int)type})"))}.")
         };
 
         return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRanking);
