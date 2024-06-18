@@ -11,16 +11,20 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 {
     private readonly IDatabase _redis;
 
-    public LeaderboardManager(IConnectionMultiplexer connectionMultiplexer)
+    public LeaderboardManager(IDatabase redis)
     {
-        _redis = connectionMultiplexer.GetDatabase();
+        _redis = redis;
     }
 
-    public async Task AddEnitityToLeaderboardAsync(
+    public LeaderboardManager(IConnectionMultiplexer connectionMultiplexer)
+        : this(connectionMultiplexer.GetDatabase())
+    {
+    }
+        
+    public async Task AddEntitiesToLeaderboardAsync(
         object leaderboardId,
         TEntity[] entities,
-        bool fireAndForget = false,
-        CancellationToken cancellationToken = default)
+        bool fireAndForget = false)
     {
         var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) =
             PrepareEntitiesForLeaderboardAddOperation(entities);
@@ -37,12 +41,11 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
     }
 
-    public async Task<TEntity[]> GetEntityAndNeighboursByIdAsync(
+    public async Task<TEntity[]> GetEntityAndNeighboursAsync(
         object leaderboardId,
         string entityId,
         int offset = 10,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default)
+        RankingType rankingType = RankingType.Default)
     {
         var playerIndex = await _redis
             .SortedSetRankAsync(
@@ -52,7 +55,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
 
         if (playerIndex == null)
         {
-            return null;
+            return [];
         }
 
         var startIndex = Math.Max(playerIndex.Value - offset, 0);
@@ -61,11 +64,82 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             ? offset * 2
             : (int)playerIndex.Value + offset;
 
+        return await GetLeaderboardAsync(
+            leaderboardId, startIndex, pageSize, rankingType);
+    }
+
+    public async Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
+        object leaderboardId,
+        double minScore,
+        double maxScore,
+        RankingType rankingType = RankingType.Default)
+    {
+        var entitiesInRange = await _redis
+            .SortedSetRangeByScoreAsync(
+                CacheKey.ForLeaderboardSortedSet(leaderboardId),
+                minScore,
+                maxScore,
+                order: Order.Descending);
+
+        if (!entitiesInRange.Any())
+        {
+            return [];
+        }
+
+        var startIndex = await _redis.SortedSetRankAsync(
+            CacheKey.ForLeaderboardSortedSet(leaderboardId),
+            entitiesInRange.First(), 
+            Order.Descending);
+
+        var pageSize = entitiesInRange.Length;
+
+        return await GetLeaderboardAsync(
+            leaderboardId, startIndex!.Value, pageSize, rankingType);
+    }
+
+    public Task<TEntity> GetEntityDataAsync(object leaderboardId, string entityId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<double> GetEntityScoreAsync(object leaderboardId, string entityId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<long> GetEntityRankAsync(string entityId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task RemoveEntityAsync(string entityId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<long> GetLeaderboardSizeAsync(object leaderboardId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task ClearLeaderboardAsync(object leaderboardId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task DeleteLeaderboardAsync(object leaderboardId)
+    {
+        throw new NotImplementedException();
+    }
+
+    private async Task<TEntity[]> GetLeaderboardAsync(
+        object leaderboardId, long startIndex, int pageSize, RankingType rankingType)
+    {
         var playerIdsWithRanking = rankingType switch
         {
             RankingType.Default
                 => await GetPlayerIdsWithDefaultRanking(
-                    leaderboardId, startIndex, endIndex: playerIndex.Value + offset - 1),
+                    leaderboardId, startIndex, pageSize),
             RankingType.DenseRank
                 => await GetPlayerIdsWithDenseRanking(
                     leaderboardId, startIndex, pageSize),
@@ -80,56 +154,11 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         return await GetEntitiesDataAsync(leaderboardId, playerIdsWithRanking);
     }
 
-    public async Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
-        object leaderboardId,
-        double minScoreValue,
-        double maxScoreValue,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<TEntity> GetEntityDataByIdAsync(object leaderboardId, string entityId,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<double> GetEntityScoreByIdAsync(object leaderboardId, string entityId,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<long> GetEntityRankByIdAsync(string entityId, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task RemoveEntityByIdAsync(string entityId, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<long> GetLeaderboardSizeAsync(object leaderboardId, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task ClearLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task DeleteLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
     private async Task<Dictionary<string, long>> GetPlayerIdsWithDefaultRanking(
-        object leaderboardId, long startIndex, long endIndex)
+        object leaderboardId, long startIndex, int pageSize)
     {
+        var endIndex = startIndex + pageSize - 1;
+        
         var playerIdsWithRanking = new Dictionary<string, long>();
 
         var entities = await _redis.SortedSetRangeByRankAsync(

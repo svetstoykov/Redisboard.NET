@@ -14,14 +14,12 @@ public interface ILeaderboardManager<TEntity>
     /// If a specified entity is already a member of the leaderboard, only the score is updated and the entity reinserted at the right position to ensure the correct ordering.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
-    /// <param name="entities">The entity to add to the leaderboard.</param>
+    /// <param name="entities">The entity(or multiple) to add to the leaderboard.</param>
     /// <param name="fireAndForget">Utilizes a fire-and-forget approach to saving data in Redis. It's has an improved performance over waiting for the response from the server, however keep in mind that you won't notice any server errors that get reported.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    Task AddEnitityToLeaderboardAsync(
+    Task AddEntitiesToLeaderboardAsync(
         object leaderboardId,
         TEntity[] entities,
-        bool fireAndForget = default,
-        CancellationToken cancellationToken = default);
+        bool fireAndForget = default);
 
     /// <summary>
     /// Asynchronously retrieves a leaderboard entity by its unique identifier, including its neighbors.
@@ -30,94 +28,79 @@ public interface ILeaderboardManager<TEntity>
     /// <param name="entityId">The unique identifier of the leaderboard entity.</param>
     /// <param name="offset">The number of neighbours to retrieve before and after the current entity</param>
     /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>An array of leaderboard entities with the requested member in the middle.</returns>
-    Task<TEntity[]> GetEntityAndNeighboursByIdAsync(
+    Task<TEntity[]> GetEntityAndNeighboursAsync(
         object leaderboardId,
         string entityId,
         int offset = 10,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default);
+        RankingType rankingType = RankingType.Default);
 
     /// <summary>
     /// Retrieves a subset of the leaderboard based on score range asynchronously.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
-    /// <param name="minScoreValue">The minimum score value (inclusive).</param>
-    /// <param name="maxScoreValue">The maximum score value (exclusive).</param>
+    /// <param name="minScore">The minimum score value (inclusive).</param>
+    /// <param name="maxScore">The maximum score value (inclusive).</param>
     /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A subset of the leaderboard based on score range.</returns>
     Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
         object leaderboardId,
-        double minScoreValue,
-        double maxScoreValue,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default);
+        double minScore,
+        double maxScore,
+        RankingType rankingType = RankingType.Default);
 
     /// <summary>
     /// Retrieves the data of a specific entity from the leaderboard asynchronously.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <param name="entityId">The identifier of the entity whose data is to be retrieved.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the entity data.</returns>
-    Task<TEntity> GetEntityDataByIdAsync(
+    Task<TEntity> GetEntityDataAsync(
         object leaderboardId, 
-        string entityId,
-        CancellationToken cancellationToken = default);
+        string entityId);
 
     /// <summary>
     /// Retrieves the score of a specific entity from the leaderboard asynchronously.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <param name="entityId">The identifier of the entity whose score is to be retrieved.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the score of the entity.</returns>
-    Task<double> GetEntityScoreByIdAsync(
+    Task<double> GetEntityScoreAsync(
         object leaderboardId, 
-        string entityId,
-        CancellationToken cancellationToken = default);
+        string entityId);
 
     /// <summary>
     /// Retrieves the rank of a specific entity in the leaderboard asynchronously.
     /// </summary>
     /// <param name="entityId">The identifier of the entity whose rank is to be retrieved.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the rank of the entity.</returns>
-    Task<long> GetEntityRankByIdAsync(string entityId, CancellationToken cancellationToken = default);
+    Task<long> GetEntityRankAsync(string entityId);
 
     /// <summary>
     /// Removes a specific entity from the leaderboard.
     /// </summary>
     /// <param name="entityId">The identifier of the entity to be removed.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task RemoveEntityByIdAsync(string entityId, CancellationToken cancellationToken = default);
+    Task RemoveEntityAsync(string entityId);
 
     /// <summary>
     /// Retrieves the size of the leaderboard.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the size of the leaderboard.</returns>
-    Task<long> GetLeaderboardSizeAsync(object leaderboardId, CancellationToken cancellationToken = default);
+    Task<long> GetLeaderboardSizeAsync(object leaderboardId);
 
     /// <summary>
     /// Clears all entries from the leaderboard.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
-    /// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task ClearLeaderboardAsync(object leaderboardId, CancellationToken cancellationToken = default);
+    Task ClearLeaderboardAsync(object leaderboardId);
 
     /// <summary>
     /// Deletes the leaderboard by provided <para>leaderboardId</para>. If the leaderboard does not exist, nothing happens.
     /// </summary>
     /// <param name="leaderboardId"></param>
-    /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task DeleteLeaderboardAsync(
-        object leaderboardId,
-        CancellationToken cancellationToken = default);
+    Task DeleteLeaderboardAsync(object leaderboardId);
 }

@@ -38,7 +38,7 @@ public class RedisHelper
                 playersToAdd[j] = generated;
             }
 
-            await manager.AddEnitityToLeaderboardAsync(leaderboardId, playersToAdd);
+            await manager.AddEntitiesToLeaderboardAsync(leaderboardId, playersToAdd);
         }
     }
 }
