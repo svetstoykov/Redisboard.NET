@@ -72,16 +72,19 @@ public interface ILeaderboard<TEntity>
     /// <summary>
     /// Retrieves the rank of a specific entity in the leaderboard asynchronously.
     /// </summary>
+    /// <param name="leaderboardId"></param>
     /// <param name="entityId">The identifier of the entity whose rank is to be retrieved.</param>
+    /// <param name="rankingType"></param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the rank of the entity.</returns>
-    Task<long> GetEntityRankAsync(string entityId);
+    Task<long> GetEntityRankAsync(object leaderboardId, string entityId, RankingType rankingType = RankingType.Default);
 
     /// <summary>
     /// Removes a specific entity from the leaderboard.
     /// </summary>
+    /// <param name="leaderboardId"></param>
     /// <param name="entityId">The identifier of the entity to be removed.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task DeleteEntityAsync(string entityId);
+    Task DeleteEntityAsync(object leaderboardId, string entityId);
 
     /// <summary>
     /// Retrieves the size of the leaderboard.
@@ -89,13 +92,6 @@ public interface ILeaderboard<TEntity>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the size of the leaderboard.</returns>
     Task<long> GetSizeAsync(object leaderboardId);
-
-    /// <summary>
-    /// Clears all entries from the leaderboard.
-    /// </summary>
-    /// <param name="leaderboardId">The identifier of the leaderboard.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    Task ClearAsync(object leaderboardId);
 
     /// <summary>
     /// Deletes the leaderboard by provided <param>leaderboardId</param>. If the leaderboard does not exist, nothing happens.
