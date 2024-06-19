@@ -90,4 +90,15 @@ public class LeaderboardTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await leaderboard.AddEntitiesAsync(LeaderboardId, entities));
     }
+    
+    [Fact]
+    public async Task AddEntitiesAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    {
+        var entities = new TestPlayer[5];
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await leaderboard.AddEntitiesAsync(null, entities));
+    }
 }

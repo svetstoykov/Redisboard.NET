@@ -65,8 +65,7 @@ public interface ILeaderboard<TEntity>
     /// <param name="leaderboardKey">The identifier of the leaderboard.</param>
     /// <param name="entityKey">The identifier of the entity whose score is to be retrieved.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the score of the entity.</returns>
-    Task<double> GetEntityScoreAsync(
-        object leaderboardKey, 
+    Task<double?> GetEntityScoreAsync(object leaderboardKey,
         string entityKey);
 
     /// <summary>
@@ -76,7 +75,8 @@ public interface ILeaderboard<TEntity>
     /// <param name="entityKey">The identifier of the entity whose rank is to be retrieved.</param>
     /// <param name="rankingType"></param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the rank of the entity.</returns>
-    Task<long> GetEntityRankAsync(object leaderboardKey, string entityKey, RankingType rankingType = RankingType.Default);
+    Task<long?> GetEntityRankAsync(object leaderboardKey, string entityKey,
+        RankingType rankingType = RankingType.Default);
 
     /// <summary>
     /// Removes a specific entity from the leaderboard.

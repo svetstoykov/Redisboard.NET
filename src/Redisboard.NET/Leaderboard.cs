@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using Redisboard.NET.Enumerations;
-using Redisboard.NET.Exceptions;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
@@ -60,7 +59,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         RankingType rankingType = RankingType.Default)
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-
+        Guard.AgainstInvalidEntityKey(entityKey);
         
         var playerIndex = await _redis
             .SortedSetRankAsync(
@@ -118,31 +117,21 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entityKey);
 
-        if (hashEntry == default)
-        {
-            // todo validation message
-            throw new LeaderboardEntityNotFoundException();
-        }
-
-        return JsonSerializer.Deserialize<TEntity>(hashEntry);
+        return hashEntry == default 
+            ? default 
+            : JsonSerializer.Deserialize<TEntity>(hashEntry);
     }
 
-    public async Task<double> GetEntityScoreAsync(object leaderboardKey, string entityKey)
+    public async Task<double?> GetEntityScoreAsync(object leaderboardKey, string entityKey)
     {
         var score = await _redis.SortedSetScoreAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             entityKey);
 
-        if (score == null)
-        {
-            // todo validation message
-            throw new LeaderboardEntityNotFoundException();
-        }
-
-        return score.Value;
+        return score;
     }
 
-    public async Task<long> GetEntityRankAsync(
+    public async Task<long?> GetEntityRankAsync(
         object leaderboardKey,
         string entityKey,
         RankingType rankingType = RankingType.Default)
@@ -155,8 +144,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         if (playerIndex == null)
         {
-            // todo validation message
-            throw new LeaderboardEntityNotFoundException();
+            return null;
         }
 
         if (rankingType == RankingType.Default)

@@ -21,7 +21,7 @@ internal static class Guard
         }
     }
 
-    public static void AgainstInvalidEntityId(string entityId)
+    public static void AgainstInvalidEntityKey(string entityId)
     {
         if (string.IsNullOrEmpty(entityId))
         {
