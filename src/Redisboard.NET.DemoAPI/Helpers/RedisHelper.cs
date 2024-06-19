@@ -25,9 +25,9 @@ public class RedisHelper
 
             for (var j = 0; j < playersPerBatch; j++)
             {
-                var generated = new Player()
+                var generated = new Player
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = Guid.NewGuid(),
                     EntryDate = DateTime.Now,
                     FirstName = $"FirstName_{i}_{j}",
                     LastName = $"LastName_{i}_{j}",

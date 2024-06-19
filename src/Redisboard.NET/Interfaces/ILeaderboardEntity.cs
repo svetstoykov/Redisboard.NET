@@ -10,7 +10,7 @@ public interface ILeaderboardEntity
     /// <summary>
     /// Gets the unique identifier for the leaderboard entity.
     /// </summary>
-    string Id { get; set; }
+    string Key { get; }
     
     /// <summary>
     /// Gets or sets the rank of the entity in the leaderboard, determined by the specified ranking type, when retrieving the records.

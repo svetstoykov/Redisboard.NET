@@ -4,10 +4,10 @@ namespace Redisboard.NET.Helpers;
 
 internal static class LeaderboardScript
 {
-    public static string ForPlayerIdsByRangeWithCompetitionRank()
+    public static string ForEntityKeysByRangeWithCompetitionRank()
         => LoadLuaScript("get_player_ids_by_range_competition_rank.lua");
     
-    public static string ForPlayerIdsByRangeWithDenseRank()
+    public static string ForEntityKeysByRangeWithDenseRank()
         => LoadLuaScript("get_player_ids_by_range_dense_rank.lua");
 
     private static string LoadLuaScript(string scriptName)

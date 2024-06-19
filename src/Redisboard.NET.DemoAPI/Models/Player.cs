@@ -4,7 +4,9 @@ namespace Redisboard.NET.DemoAPI.Models;
 
 public class Player : ILeaderboardEntity
 {
-    public string Id { get; set; }
+    public Guid Id { get; set; }
+
+    public string Key => Id.ToString();
     
     public long Rank { get; set; }
     

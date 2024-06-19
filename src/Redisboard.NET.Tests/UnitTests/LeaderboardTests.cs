@@ -1,6 +1,5 @@
 using Moq;
 using Redisboard.NET.Helpers;
-using Redisboard.NET.Services;
 using Redisboard.NET.Tests.Common.Models;
 using StackExchange.Redis;
 

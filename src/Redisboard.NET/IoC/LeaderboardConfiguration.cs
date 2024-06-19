@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Redisboard.NET.Interfaces;
-using Redisboard.NET.Services;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.IoC;
@@ -8,7 +7,7 @@ namespace Redisboard.NET.IoC;
 /// <summary>
 /// Extension methods for IServiceCollection to add leaderboard manager services.
 /// </summary>
-public static class LeaderboardServiceCollectionExtensions
+public static class LeaderboardConfiguration
 {
     /// <summary>
     /// Adds the leaderboard manager services to the service collection.
