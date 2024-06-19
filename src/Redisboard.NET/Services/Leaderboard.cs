@@ -20,25 +20,38 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         : this(connectionMultiplexer.GetDatabase())
     {
     }
-        
+
     public async Task AddEntitiesAsync(
         object leaderboardId,
         TEntity[] entities,
         bool fireAndForget = false)
     {
+        if (entities == null)
+        {
+            throw new ArgumentNullException(nameof(entities), "The entities array cannot be null.");
+        }
+        
         var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) =
             PrepareEntitiesForLeaderboardAddOperation(entities);
 
-        if (fireAndForget)
-        {
-            FireAndForgetAddToLeaderboard(
-                leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
+        var commandFlags = fireAndForget
+            ? CommandFlags.FireAndForget
+            : CommandFlags.None;
+        
+        await _redis.SortedSetAddAsync(
+            CacheKey.ForLeaderboardSortedSet(leaderboardId), 
+            sortedSetEntries,
+            commandFlags);
 
-            return;
-        }
+        await _redis.HashSetAsync(
+            CacheKey.ForEntityDataHashSet(leaderboardId),
+            hashSetEntries,
+            commandFlags);
 
-        await BatchAddToLeaderboardAsync(
-            leaderboardId, sortedSetEntries, hashSetEntries, uniqueScoreEntries);
+        await _redis.SortedSetAddAsync(
+            CacheKey.ForUniqueScoreSortedSet(leaderboardId),
+            uniqueScoreEntries,
+            commandFlags);
     }
 
     public async Task<TEntity[]> GetEntityAndNeighboursAsync(
@@ -88,7 +101,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var startIndex = await _redis.SortedSetRankAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardId),
-            entitiesInRange.First(), 
+            entitiesInRange.First(),
             Order.Descending);
 
         var pageSize = entitiesInRange.Length - 1;
@@ -158,7 +171,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         object leaderboardId, long startIndex, int pageSize)
     {
         var endIndex = startIndex + pageSize;
-        
+
         var playerIdsWithRanking = new Dictionary<string, long>();
 
         var entities = await _redis.SortedSetRangeByRankAsync(
@@ -298,25 +311,12 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         _redis.Ping();
     }
 
-    private async Task BatchAddToLeaderboardAsync(
+    private async Task AddToLeaderboardAsync(
         object leaderboardId,
         SortedSetEntry[] sortedSetEntries,
         HashEntry[] hashSetEntries,
         SortedSetEntry[] uniqueScoreEntries)
     {
-        var batch = _redis.CreateBatch();
 
-        var addToSortedSetTask = _redis.SortedSetAddAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardId), sortedSetEntries);
-
-        var addToHashSetTask = _redis.HashSetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardId), hashSetEntries);
-
-        var addToUniqueScoreSortedSetTask = _redis.SortedSetAddAsync(
-            CacheKey.ForUniqueScoreSortedSet(leaderboardId), uniqueScoreEntries);
-
-        batch.Execute();
-
-        await Task.WhenAll(addToSortedSetTask, addToHashSetTask, addToUniqueScoreSortedSetTask);
     }
 }

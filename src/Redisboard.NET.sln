@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET", "Redisboar
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.DemoAPI", "Redisboard.NET.DemoAPI\Redisboard.NET.DemoAPI.csproj", "{7649F434-263E-4501-9089-E1DDBB15B1BE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.Tests", "Redisboard.NET.Tests\Redisboard.NET.Tests.csproj", "{4A693040-5C4F-4D52-BD89-F7AFFDF3BE75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{7649F434-263E-4501-9089-E1DDBB15B1BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7649F434-263E-4501-9089-E1DDBB15B1BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7649F434-263E-4501-9089-E1DDBB15B1BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A693040-5C4F-4D52-BD89-F7AFFDF3BE75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A693040-5C4F-4D52-BD89-F7AFFDF3BE75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A693040-5C4F-4D52-BD89-F7AFFDF3BE75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A693040-5C4F-4D52-BD89-F7AFFDF3BE75}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
