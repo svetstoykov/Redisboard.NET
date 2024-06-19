@@ -6,22 +6,22 @@ using StackExchange.Redis;
 
 namespace Redisboard.NET.Services;
 
-public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
+internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity
 {
     private readonly IDatabase _redis;
 
-    public LeaderboardManager(IDatabase redis)
+    public Leaderboard(IDatabase redis)
     {
         _redis = redis;
     }
 
-    public LeaderboardManager(IConnectionMultiplexer connectionMultiplexer)
+    public Leaderboard(IConnectionMultiplexer connectionMultiplexer)
         : this(connectionMultiplexer.GetDatabase())
     {
     }
         
-    public async Task AddEntitiesToLeaderboardAsync(
+    public async Task AddEntitiesAsync(
         object leaderboardId,
         TEntity[] entities,
         bool fireAndForget = false)
@@ -68,7 +68,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             leaderboardId, startIndex, pageSize, rankingType);
     }
 
-    public async Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
+    public async Task<TEntity[]> GetEntitiesByScoreRangeAsync(
         object leaderboardId,
         double minScore,
         double maxScore,
@@ -91,7 +91,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
             entitiesInRange.First(), 
             Order.Descending);
 
-        var pageSize = entitiesInRange.Length;
+        var pageSize = entitiesInRange.Length - 1;
 
         return await GetLeaderboardAsync(
             leaderboardId, startIndex!.Value, pageSize, rankingType);
@@ -112,22 +112,22 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
         throw new NotImplementedException();
     }
 
-    public Task RemoveEntityAsync(string entityId)
+    public Task DeleteEntityAsync(string entityId)
     {
         throw new NotImplementedException();
     }
 
-    public Task<long> GetLeaderboardSizeAsync(object leaderboardId)
+    public Task<long> GetSizeAsync(object leaderboardId)
     {
         throw new NotImplementedException();
     }
 
-    public Task ClearLeaderboardAsync(object leaderboardId)
+    public Task ClearAsync(object leaderboardId)
     {
         throw new NotImplementedException();
     }
 
-    public Task DeleteLeaderboardAsync(object leaderboardId)
+    public Task DeleteAsync(object leaderboardId)
     {
         throw new NotImplementedException();
     }
@@ -157,7 +157,7 @@ public class LeaderboardManager<TEntity> : ILeaderboardManager<TEntity>
     private async Task<Dictionary<string, long>> GetPlayerIdsWithDefaultRanking(
         object leaderboardId, long startIndex, int pageSize)
     {
-        var endIndex = startIndex + pageSize - 1;
+        var endIndex = startIndex + pageSize;
         
         var playerIdsWithRanking = new Dictionary<string, long>();
 

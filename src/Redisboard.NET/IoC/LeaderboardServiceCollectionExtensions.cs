@@ -25,7 +25,7 @@ public static class LeaderboardServiceCollectionExtensions
         Action<ConfigurationOptions> optionsAction = default)
         where TEntity : ILeaderboardEntity
     {
-        services.AddScoped<ILeaderboardManager<TEntity>, LeaderboardManager<TEntity>>();
+        services.AddScoped<ILeaderboard<TEntity>, Leaderboard<TEntity>>();
 
         if (services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
         {

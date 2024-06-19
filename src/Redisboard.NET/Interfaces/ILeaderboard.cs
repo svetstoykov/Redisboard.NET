@@ -3,10 +3,10 @@
 namespace Redisboard.NET.Interfaces;
 
 /// <summary>
-/// Interface for managing leaderboards in Redis.
+/// Interface for interacting with the leaderboard
 /// </summary>
 /// <typeparam name="TEntity">The type of leaderboard entities.</typeparam>
-public interface ILeaderboardManager<TEntity>
+public interface ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity
 {
     /// <summary>
@@ -14,15 +14,15 @@ public interface ILeaderboardManager<TEntity>
     /// If a specified entity is already a member of the leaderboard, only the score is updated and the entity reinserted at the right position to ensure the correct ordering.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
-    /// <param name="entities">The entity(or multiple) to add to the leaderboard.</param>
-    /// <param name="fireAndForget">Utilizes a fire-and-forget approach to saving data in Redis. It's has an improved performance over waiting for the response from the server, however keep in mind that you won't notice any server errors that get reported.</param>
-    Task AddEntitiesToLeaderboardAsync(
+    /// <param name="entities">The entity/entities to add to the leaderboard.</param>
+    /// <param name="fireAndForget">Utilizes a fire-and-forget approach to saving data. It has an improved performance over waiting for the response from the server, however keep in mind that you won't notice any server errors that get reported.</param>
+    Task AddEntitiesAsync(
         object leaderboardId,
         TEntity[] entities,
         bool fireAndForget = default);
-
+    
     /// <summary>
-    /// Asynchronously retrieves a leaderboard entity by its unique identifier, including its neighbors.
+    /// Retrieves a leaderboard entity by its unique identifier, including its neighbors with a defined offset.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
     /// <param name="entityId">The unique identifier of the leaderboard entity.</param>
@@ -36,21 +36,21 @@ public interface ILeaderboardManager<TEntity>
         RankingType rankingType = RankingType.Default);
 
     /// <summary>
-    /// Retrieves a subset of the leaderboard based on score range asynchronously.
+    /// Retrieves a subset of the leaderboard based on score range.
     /// </summary>
     /// <param name="leaderboardId">Unique identifier for the leaderboard</param>
     /// <param name="minScore">The minimum score value (inclusive).</param>
     /// <param name="maxScore">The maximum score value (inclusive).</param>
     /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
     /// <returns>A subset of the leaderboard based on score range.</returns>
-    Task<TEntity[]> GetLeaderboardByScoreRangeAsync(
+    Task<TEntity[]> GetEntitiesByScoreRangeAsync(
         object leaderboardId,
         double minScore,
         double maxScore,
         RankingType rankingType = RankingType.Default);
 
     /// <summary>
-    /// Retrieves the data of a specific entity from the leaderboard asynchronously.
+    /// Retrieves the data of a specific entity from the leaderboard.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <param name="entityId">The identifier of the entity whose data is to be retrieved.</param>
@@ -81,26 +81,26 @@ public interface ILeaderboardManager<TEntity>
     /// </summary>
     /// <param name="entityId">The identifier of the entity to be removed.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task RemoveEntityAsync(string entityId);
+    Task DeleteEntityAsync(string entityId);
 
     /// <summary>
     /// Retrieves the size of the leaderboard.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the size of the leaderboard.</returns>
-    Task<long> GetLeaderboardSizeAsync(object leaderboardId);
+    Task<long> GetSizeAsync(object leaderboardId);
 
     /// <summary>
     /// Clears all entries from the leaderboard.
     /// </summary>
     /// <param name="leaderboardId">The identifier of the leaderboard.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task ClearLeaderboardAsync(object leaderboardId);
+    Task ClearAsync(object leaderboardId);
 
     /// <summary>
-    /// Deletes the leaderboard by provided <para>leaderboardId</para>. If the leaderboard does not exist, nothing happens.
+    /// Deletes the leaderboard by provided <param>leaderboardId</param>. If the leaderboard does not exist, nothing happens.
     /// </summary>
     /// <param name="leaderboardId"></param>
     /// <returns></returns>
-    Task DeleteLeaderboardAsync(object leaderboardId);
+    Task DeleteAsync(object leaderboardId);
 }

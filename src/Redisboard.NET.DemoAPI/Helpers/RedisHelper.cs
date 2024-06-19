@@ -13,7 +13,7 @@ public class RedisHelper
         int playersCount)
     {
         var scope = app.Services.CreateScope();
-        var manager = scope.ServiceProvider.GetRequiredService<ILeaderboardManager<Player>>();
+        var manager = scope.ServiceProvider.GetRequiredService<ILeaderboard<Player>>();
 
         const int batchInsertRepeat = 100;
 
@@ -38,7 +38,7 @@ public class RedisHelper
                 playersToAdd[j] = generated;
             }
 
-            await manager.AddEntitiesToLeaderboardAsync(leaderboardId, playersToAdd);
+            await manager.AddEntitiesAsync(leaderboardId, playersToAdd);
         }
     }
 }
