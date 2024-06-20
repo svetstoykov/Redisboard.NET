@@ -14,10 +14,9 @@ public class LeaderboardFixture : IDisposable
     protected LeaderboardFixture()
     {
         RedisConnection = ConnectionMultiplexer.Connect("localhost:6379");
-        
         RedisDatabase = RedisConnection.GetDatabase();
-
         Instance = new Leaderboard<TestPlayer>(RedisDatabase);
+        LeaderboardId = nameof(LeaderboardFixture);
     }
     
     public ILeaderboard<TestPlayer> Instance { get; init; }

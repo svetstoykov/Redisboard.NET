@@ -1,3 +1,5 @@
+using System.Reflection.Metadata;
+using AutoFixture;
 using Moq;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Tests.Common.Models;
@@ -9,11 +11,33 @@ public class LeaderboardTests
 {
     private const string LeaderboardId = nameof(LeaderboardId);
 
-    private readonly Mock<IDatabase> _mockDatabase;
+    private readonly string _sortedSetKey = CacheKey.ForLeaderboardSortedSet(LeaderboardId);
+    private readonly string _hashSetKey = CacheKey.ForEntityDataHashSet(LeaderboardId);
+    private readonly string _uniqueSortedSetKey = CacheKey.ForUniqueScoreSortedSet(LeaderboardId);
 
-    public LeaderboardTests()
+    private readonly Mock<IDatabase> _mockDatabase = new();
+    private readonly Random _random = new();
+
+    [Fact]
+    public async Task AddEntitiesAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
-        _mockDatabase = new Mock<IDatabase>();
+        var entities = new TestPlayer[5];
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await leaderboard.AddEntitiesAsync(null, entities));
+    }
+
+    [Fact]
+    public async Task AddEntitiesAsync_WithInvalidEntities_ThrowsArgumentNullException()
+    {
+        TestPlayer[] entities = null;
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await leaderboard.AddEntitiesAsync(LeaderboardId, entities));
     }
 
     [Fact]
@@ -27,19 +51,19 @@ public class LeaderboardTests
             LeaderboardId, [entity]);
 
         _mockDatabase.Verify(db => db.SortedSetAddAsync(
-                CacheKey.ForLeaderboardSortedSet(LeaderboardId),
+                _sortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == 1),
                 CommandFlags.None),
             Times.Once);
 
         _mockDatabase.Verify(db => db.HashSetAsync(
-                CacheKey.ForEntityDataHashSet(LeaderboardId),
+                _hashSetKey,
                 It.Is<HashEntry[]>(e => e.Length == 1),
                 CommandFlags.None),
             Times.Once);
 
         _mockDatabase.Verify(db => db.SortedSetAddAsync(
-                CacheKey.ForUniqueScoreSortedSet(LeaderboardId),
+                _uniqueSortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == 1),
                 CommandFlags.None),
             Times.Once);
@@ -62,43 +86,80 @@ public class LeaderboardTests
             LeaderboardId, entities.ToArray());
 
         _mockDatabase.Verify(db => db.SortedSetAddAsync(
-                CacheKey.ForLeaderboardSortedSet(LeaderboardId),
+                _sortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == count),
                 CommandFlags.None),
             Times.Once);
 
         _mockDatabase.Verify(db => db.HashSetAsync(
-                CacheKey.ForEntityDataHashSet(LeaderboardId),
+                _hashSetKey,
                 It.Is<HashEntry[]>(e => e.Length == count),
                 CommandFlags.None),
             Times.Once);
 
         _mockDatabase.Verify(db => db.SortedSetAddAsync(
-                CacheKey.ForUniqueScoreSortedSet(LeaderboardId),
+                _uniqueSortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == count),
                 CommandFlags.None),
             Times.Once);
     }
 
     [Fact]
-    public async Task AddEntitiesAsync_WithInvalidEntities_ThrowsArgumentNullException()
+    public async Task GetEntityAndNeighboursAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
-        TestPlayer[] entities = null;
+        var entity = Guid.NewGuid().ToString();
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await leaderboard.AddEntitiesAsync(LeaderboardId, entities));
+            await leaderboard.GetEntityAndNeighboursAsync(null, entity));
     }
-    
+
     [Fact]
-    public async Task AddEntitiesAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    public async Task GetEntityAndNeighboursAsync_WithInvalidEntities_ThrowsArgumentNullException()
     {
-        var entities = new TestPlayer[5];
+        var entity = string.Empty;
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await leaderboard.AddEntitiesAsync(null, entities));
+            await leaderboard.GetEntityAndNeighboursAsync(LeaderboardId, entity));
+    }
+
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithInvalidOffset_ThrowsArgumentOutOfRangeException()
+    {
+        var entity = Guid.NewGuid().ToString();
+        const int invalidOffset = -100;
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockDatabase.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await leaderboard.GetEntityAndNeighboursAsync(LeaderboardId, entity, invalidOffset));
+    }
+
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_ReturnsLeaderboard()
+    {
+        var entityKey = Guid.NewGuid().ToString();
+        var offset = _random.Next(10, 50);
+        var playerIndex = _random.NextInt64(50, long.MaxValue);
+        
+        var startIndex = playerIndex;
+        var pageSize = offset * 2;
+        var endIndex = playerIndex + pageSize;
+        var entities = new Fixture()
+            .CreateMany<RedisValue>(pageSize)
+            .ToArray();
+
+        _mockDatabase.Setup(db => db.SortedSetRankAsync(
+                _sortedSetKey, entityKey, Order.Descending, CommandFlags.None))
+            .ReturnsAsync(playerIndex);
+
+        _mockDatabase.Setup(db => db.SortedSetRangeByRankAsync(
+                _sortedSetKey, startIndex, endIndex, Order.Descending, CommandFlags.None))
+            .ReturnsAsync(entities);
+        
+        
     }
 }

@@ -60,6 +60,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidOffset(offset);
         
         var playerIndex = await _redis
             .SortedSetRankAsync(

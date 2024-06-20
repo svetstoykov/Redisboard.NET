@@ -4,11 +4,11 @@ namespace Redisboard.NET.Helpers;
 
 internal static class Guard
 {
-    public static void AgainstInvalidLeaderboardKey(object leaderboardId)
+    public static void AgainstInvalidLeaderboardKey(object leaderboardKey)
     {
-        if (leaderboardId == default)
+        if (leaderboardKey == default)
         {
-            throw new ArgumentNullException(nameof(leaderboardId), "Invalid leaderboard identifier");
+            throw new ArgumentNullException(nameof(leaderboardKey), "Invalid leaderboard key!");
         }
     }
 
@@ -17,15 +17,23 @@ internal static class Guard
     {
         if (entities == null)
         {
-            throw new ArgumentNullException(nameof(entities), "The leaderboards entities array cannot be null.");
+            throw new ArgumentNullException(nameof(entities), "The leaderboard entities array cannot be null.");
         }
     }
 
-    public static void AgainstInvalidEntityKey(string entityId)
+    public static void AgainstInvalidEntityKey(string entityKey)
     {
-        if (string.IsNullOrEmpty(entityId))
+        if (string.IsNullOrEmpty(entityKey))
         {
-            
+            throw new ArgumentNullException(nameof(entityKey), "Invalid entity key!");
+        }
+    }
+    
+    public static void AgainstInvalidOffset(int offset)
+    {
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative!");
         }
     }
 }
