@@ -114,6 +114,9 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task<TEntity> GetEntityDataAsync(object leaderboardKey, string entityKey)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidEntityKey(entityKey);
+        
         var hashEntry = await _redis.HashGetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entityKey);
@@ -125,6 +128,9 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task<double?> GetEntityScoreAsync(object leaderboardKey, string entityKey)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidEntityKey(entityKey);
+        
         var score = await _redis.SortedSetScoreAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             entityKey);
@@ -137,6 +143,9 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         string entityKey,
         RankingType rankingType = RankingType.Default)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidEntityKey(entityKey);
+        
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
@@ -161,6 +170,9 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task DeleteEntityAsync(object leaderboardKey, string entityKey)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidEntityKey(entityKey);
+        
         await _redis.SortedSetRemoveAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             entityKey);
@@ -174,11 +186,17 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             entityKey);
     }
 
-    public async Task<long> GetSizeAsync(object leaderboardKey) 
-        => await _redis.HashLengthAsync(CacheKey.ForEntityDataHashSet(leaderboardKey));
+    public async Task<long> GetSizeAsync(object leaderboardKey)
+    {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+
+        return await _redis.HashLengthAsync(CacheKey.ForEntityDataHashSet(leaderboardKey));
+    }
 
     public async Task DeleteAsync(object leaderboardKey)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        
         RedisKey[] keys =
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),

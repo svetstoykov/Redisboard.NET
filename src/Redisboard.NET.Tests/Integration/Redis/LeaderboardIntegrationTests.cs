@@ -8,4 +8,10 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>
     {
         _leaderboardFixture = leaderboardFixture;
     }
+
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_ReturnsLeaderboard()
+    {
+        
+    }
 }
