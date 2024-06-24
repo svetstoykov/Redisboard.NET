@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Transactions;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
@@ -36,6 +37,8 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             ? CommandFlags.FireAndForget
             : CommandFlags.None;
 
+        var transaction = _redis.CreateTransaction();
+
         await _redis.SortedSetAddAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             sortedSetEntries,
@@ -50,6 +53,9 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
             uniqueScoreEntries,
             commandFlags);
+
+        await TryExecuteTransactionAsync(
+            transaction, "Failed to add entities to leaderboard!");
     }
 
     public async Task<TEntity[]> GetEntityAndNeighboursAsync(
@@ -61,7 +67,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
         Guard.AgainstInvalidOffset(offset);
-        
+
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
@@ -116,13 +122,13 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
-        
+
         var hashEntry = await _redis.HashGetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entityKey);
 
-        return hashEntry == default 
-            ? default 
+        return hashEntry == default
+            ? default
             : JsonSerializer.Deserialize<TEntity>(hashEntry);
     }
 
@@ -130,7 +136,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
-        
+
         var score = await _redis.SortedSetScoreAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             entityKey);
@@ -145,7 +151,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
-        
+
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
@@ -172,18 +178,22 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
-        
-        await _redis.SortedSetRemoveAsync(
+
+        var transaction = _redis.CreateTransaction();
+
+        transaction.SortedSetRemoveAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             entityKey);
 
-        await _redis.HashDeleteAsync(
+        transaction.HashDeleteAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entityKey);
 
-        await _redis.SortedSetRemoveAsync(
+        transaction.SortedSetRemoveAsync(
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
             entityKey);
+
+        await TryExecuteTransactionAsync(transaction, "Failed to delete entity from leaderboard!");
     }
 
     public async Task<long> GetSizeAsync(object leaderboardKey)
@@ -196,7 +206,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
     public async Task DeleteAsync(object leaderboardKey)
     {
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        
+
         RedisKey[] keys =
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
@@ -351,5 +361,17 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             .Select(score => new SortedSetEntry(score, score)).ToArray();
 
         return (sortedSetEntries, hashSetEntries, uniqueScoreEntries);
+    }
+
+    private static async Task TryExecuteTransactionAsync(
+        ITransaction transaction,
+        string errorMessage = "Failed to execute transaction!")
+    {
+        var commited = await transaction.ExecuteAsync();
+
+        if (!commited)
+        {
+            throw new TransactionException(errorMessage);
+        }
     }
 }
