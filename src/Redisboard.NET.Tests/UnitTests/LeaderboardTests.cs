@@ -1,5 +1,6 @@
 using System.Reflection.Metadata;
 using System.Text.Json;
+using System.Transactions;
 using AutoFixture;
 using Moq;
 using Redisboard.NET.Helpers;
@@ -26,8 +27,8 @@ public class LeaderboardTests
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
 
-        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await leaderboard.AddEntitiesAsync(null, entities));
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.AddEntitiesAsync(null, entities));
     }
 
     [Fact]
@@ -37,43 +38,15 @@ public class LeaderboardTests
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
 
-        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await leaderboard.AddEntitiesAsync(LeaderboardKey, entities));
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.AddEntitiesAsync(LeaderboardKey, entities));
     }
 
     [Fact]
-    public async Task AddEntitiesAsync_WithSingleValidEntity_AddsEntityToLeaderboard()
-    {
-        var entity = TestPlayer.New();
-
-        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
-
-        await leaderboard.AddEntitiesAsync(
-            LeaderboardKey, [entity]);
-
-        _mockRedis.Verify(db => db.SortedSetAddAsync(
-                _sortedSetKey,
-                It.Is<SortedSetEntry[]>(e => e.Length == 1),
-                CommandFlags.None),
-            Times.Once);
-
-        _mockRedis.Verify(db => db.HashSetAsync(
-                _hashSetKey,
-                It.Is<HashEntry[]>(e => e.Length == 1),
-                CommandFlags.None),
-            Times.Once);
-
-        _mockRedis.Verify(db => db.SortedSetAddAsync(
-                _uniqueSortedSetKey,
-                It.Is<SortedSetEntry[]>(e => e.Length == 1),
-                CommandFlags.None),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task AddEntitiesAsync_WithMultipleValidEntity_AddsEntitiesToLeaderboard()
+    public async Task AddEntitiesAsync_WithTransactionNotCommitted_ThrowsTransactionException()
     {
         const int count = 5;
+        const bool transactionCommitedStatus = false;
 
         var entities = new List<TestPlayer>();
         for (var i = 0; i < count; i++)
@@ -81,24 +54,66 @@ public class LeaderboardTests
             entities.Add(TestPlayer.New());
         }
 
+        var transactionMock = new Mock<ITransaction>();
+
+        transactionMock.Setup(tr => tr.ExecuteAsync(CommandFlags.None))
+            .ReturnsAsync(transactionCommitedStatus)
+            .Verifiable();
+
+        _mockRedis.Setup(db => db.CreateTransaction(null))
+            .Returns(transactionMock.Object)
+            .Verifiable();
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<TransactionException>(
+            async () => await leaderboard.AddEntitiesAsync(LeaderboardKey, entities.ToArray()));
+    }
+
+    [Fact]
+    public async Task AddEntitiesAsync_WithValidEntities_AddsEntitiesToLeaderboard()
+    {
+        const int count = 5;
+        const bool transactionCommitedStatus = true;
+
+        var entities = new List<TestPlayer>();
+        for (var i = 0; i < count; i++)
+        {
+            entities.Add(TestPlayer.New());
+        }
+
+        var transactionMock = new Mock<ITransaction>();
+
+        transactionMock.Setup(tr => tr.ExecuteAsync(CommandFlags.None))
+            .ReturnsAsync(transactionCommitedStatus)
+            .Verifiable();
+
+        _mockRedis.Setup(db => db.CreateTransaction(null))
+            .Returns(transactionMock.Object)
+            .Verifiable();
+
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
 
         await leaderboard.AddEntitiesAsync(
             LeaderboardKey, entities.ToArray());
 
-        _mockRedis.Verify(db => db.SortedSetAddAsync(
+        _mockRedis.Verify();
+
+        transactionMock.Verify();
+
+        transactionMock.Verify(db => db.SortedSetAddAsync(
                 _sortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == count),
                 CommandFlags.None),
             Times.Once);
 
-        _mockRedis.Verify(db => db.HashSetAsync(
+        transactionMock.Verify(db => db.HashSetAsync(
                 _hashSetKey,
                 It.Is<HashEntry[]>(e => e.Length == count),
                 CommandFlags.None),
             Times.Once);
 
-        _mockRedis.Verify(db => db.SortedSetAddAsync(
+        transactionMock.Verify(db => db.SortedSetAddAsync(
                 _uniqueSortedSetKey,
                 It.Is<SortedSetEntry[]>(e => e.Length == count),
                 CommandFlags.None),
@@ -137,6 +152,35 @@ public class LeaderboardTests
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             async () => await leaderboard.GetEntityAndNeighboursAsync(LeaderboardKey, entity, invalidOffset));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    {
+        var leaderboardKey = default(object);
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(leaderboardKey, 0, 100));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMinScore_ThrowsArgumentException()
+    {
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, -100, 100));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMaxScore_ThrowsArgumentException()
+    {
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 0, -100));
     }
 
     [Fact]
@@ -278,22 +322,38 @@ public class LeaderboardTests
     public async Task DeleteEntityAsync_WithValidEntityKey_ThrowsArgumentNullException()
     {
         var entityKey = Guid.NewGuid().ToString();
+        const bool transactionCommitedStatus = true;
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+        
+        var transactionMock = new Mock<ITransaction>();
+
+        _mockRedis
+            .Setup(db => db.CreateTransaction(null))
+            .Returns(transactionMock.Object)
+            .Verifiable();
+
+        transactionMock.Setup(tr => tr.ExecuteAsync(CommandFlags.None))
+            .ReturnsAsync(transactionCommitedStatus)
+            .Verifiable();
 
         await leaderboard.DeleteEntityAsync(LeaderboardKey, entityKey);
 
-        _mockRedis.Verify(db => db.SortedSetRemoveAsync(
+        _mockRedis.Verify();
+        
+        transactionMock.Verify();
+        
+        transactionMock.Verify(db => db.SortedSetRemoveAsync(
             CacheKey.ForLeaderboardSortedSet(LeaderboardKey),
             entityKey,
             CommandFlags.None), Times.Once);
 
-        _mockRedis.Verify(db => db.HashDeleteAsync(
+        transactionMock.Verify(db => db.HashDeleteAsync(
             CacheKey.ForEntityDataHashSet(LeaderboardKey),
             entityKey,
             CommandFlags.None), Times.Once);
 
-        _mockRedis.Verify(db => db.SortedSetRemoveAsync(
+        transactionMock.Verify(db => db.SortedSetRemoveAsync(
             CacheKey.ForUniqueScoreSortedSet(LeaderboardKey),
             entityKey,
             CommandFlags.None), Times.Once);
@@ -364,7 +424,7 @@ public class LeaderboardTests
         };
 
         _mockRedis.Setup(db => db.KeyDeleteAsync(It.IsAny<RedisKey[]>(), CommandFlags.None))
-            .ReturnsAsync(3) 
+            .ReturnsAsync(3)
             .Verifiable();
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
@@ -373,7 +433,7 @@ public class LeaderboardTests
 
         _mockRedis.Verify(
             db => db.KeyDeleteAsync(
-                It.Is<RedisKey[]>(keys => keys.SequenceEqual(expectedKeys)), 
+                It.Is<RedisKey[]>(keys => keys.SequenceEqual(expectedKeys)),
                 CommandFlags.None),
             Times.Once);
     }

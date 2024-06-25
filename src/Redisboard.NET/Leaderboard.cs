@@ -39,17 +39,17 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var transaction = _redis.CreateTransaction();
 
-        await _redis.SortedSetAddAsync(
+        transaction.SortedSetAddAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             sortedSetEntries,
             commandFlags);
 
-        await _redis.HashSetAsync(
+        transaction.HashSetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             hashSetEntries,
             commandFlags);
 
-        await _redis.SortedSetAddAsync(
+        transaction.SortedSetAddAsync(
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
             uniqueScoreEntries,
             commandFlags);
@@ -95,6 +95,10 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         double maxScore,
         RankingType rankingType = RankingType.Default)
     {
+        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidScoreRangeLimit(minScore);
+        Guard.AgainstInvalidScoreRangeLimit(maxScore);
+        
         var entitiesInRange = await _redis
             .SortedSetRangeByScoreAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),

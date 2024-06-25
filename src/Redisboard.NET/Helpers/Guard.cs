@@ -36,4 +36,12 @@ internal static class Guard
             throw new ArgumentOutOfRangeException(nameof(offset), "Offset cannot be negative!");
         }
     }
+    
+    public static void AgainstInvalidScoreRangeLimit(double limit)
+    {
+        if (limit < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Score range limit cannot be negative!");
+        }
+    }
 }
