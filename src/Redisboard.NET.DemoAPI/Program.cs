@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using Redisboard.NET.DemoAPI.Models;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Interfaces;

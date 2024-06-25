@@ -1,19 +1,20 @@
-local cacheKey = KEYS[1]
+local sortedSetCacheKey = KEYS[1]
 local startIndex = tonumber(ARGV[1])
 local pageSize = tonumber(ARGV[2])
 local competitionType = tonumber(ARGV[3])
 
 local endIndex = startIndex + pageSize
 
-local allMembers = redis.call('zrange', cacheKey, startIndex, endIndex)
+local membersWithScores = redis.call('zrange', sortedSetCacheKey, startIndex, endIndex, 'WITHSCORES')
 
 local result = {}
 
-for i, memberIdentifier in ipairs(allMembers) do
-    local memberScore = redis.call('zscore', cacheKey, memberIdentifier)
-    local allMembersWithSameScore = redis.call('zrangebyscore', cacheKey, memberScore, memberScore, 'limit', 0, -1)
+for i = 1, #membersWithScores, 2 do
+    local memberIdentifier = membersWithScores[i]
+    local memberScore = membersWithScores[i + 1]
 
-    local memberRank = 0
+    local allMembersWithSameScore = redis.call('zrangebyscore', sortedSetCacheKey, memberScore, memberScore, 'limit', 0, -1)
+
     local relativeMemberWithSameScore = "";
 
     if (competitionType == 3) then -- standard competition ranking (SCR)
@@ -24,9 +25,9 @@ for i, memberIdentifier in ipairs(allMembers) do
         relativeMemberWithSameScore = allMembersWithSameScore[#allMembersWithSameScore]
     end
 
-    memberRank = redis.call('zrank', cacheKey, relativeMemberWithSameScore) + 1
+    local memberRank = redis.call('zrank', sortedSetCacheKey, relativeMemberWithSameScore) + 1
 
-    result[i] = { memberIdentifier, memberRank }
+    table.insert(result, { memberIdentifier, memberRank })
 end
 
 return result
