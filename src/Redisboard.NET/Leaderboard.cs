@@ -71,8 +71,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-                entityKey,
-                Order.Descending);
+                entityKey);
 
         if (playerIndex == null)
         {
@@ -98,13 +97,12 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidScoreRangeLimit(minScore);
         Guard.AgainstInvalidScoreRangeLimit(maxScore);
-        
+
         var entitiesInRange = await _redis
             .SortedSetRangeByScoreAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
                 minScore,
-                maxScore,
-                order: Order.Descending);
+                maxScore);
 
         if (!entitiesInRange.Any())
         {
@@ -113,8 +111,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var startIndex = await _redis.SortedSetRankAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            entitiesInRange.First(),
-            Order.Descending);
+            entitiesInRange.First());
 
         var pageSize = entitiesInRange.Length - 1;
 
@@ -156,11 +153,12 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidEntityKey(entityKey);
 
+        const int singleUserPageSize = 1;
+
         var playerIndex = await _redis
             .SortedSetRankAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-                entityKey,
-                Order.Descending);
+                entityKey);
 
         if (playerIndex == null)
         {
@@ -173,7 +171,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         }
 
         var entity = await GetLeaderboardAsync(
-            leaderboardKey, playerIndex.Value, 1, rankingType);
+            leaderboardKey, playerIndex.Value, singleUserPageSize, rankingType);
 
         return entity.Rank;
     }
@@ -253,8 +251,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var entities = await _redis.SortedSetRangeByRankAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             startIndex,
-            endIndex,
-            Order.Descending);
+            endIndex);
 
         var rankForTopPlayer = startIndex + 1;
         for (var i = 0; i < entities.Length; i++)
@@ -332,6 +329,7 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
             var entity = JsonSerializer.Deserialize<TEntity>(data);
 
             entity.Rank = entityKeysWithRank[entity.Key];
+            entity.Score *= -1;
 
             leaderboard[i] = entity;
         }
@@ -350,11 +348,19 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         {
             var entity = entities[i];
 
+            // By default, Redis ranks things from lowest to highest score.
+            // For leaderboards, we want the top scorers at the beginning (highest to lowest).
+            // But if we request Order.Descending when querying we will also reverse the lexicographical order (for entries with same score)
+            // To solve this, we simply store the scores as negative numbers.
+            // This way, when we ask for the regular order (lowest to highest),
+            // it actually gives us the highest scores (because they're negative) first.
+            var invertedScore = -entity.Score;
+
             var redisValueId = new RedisValue(entity.Key);
 
-            sortedSetEntries[i] = new SortedSetEntry(redisValueId, entity.Score);
+            sortedSetEntries[i] = new SortedSetEntry(redisValueId, invertedScore);
 
-            uniqueScores.Add(entity.Score);
+            uniqueScores.Add(invertedScore);
 
             var serializedData = new RedisValue(JsonSerializer.Serialize(entity));
 

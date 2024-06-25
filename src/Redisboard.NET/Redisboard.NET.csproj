@@ -21,4 +21,15 @@
       <None Remove="Scripts\get_player_ids_by_range_dense_rank.lua" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
+      <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
+      <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
+    </ItemGroup>
+
 </Project>

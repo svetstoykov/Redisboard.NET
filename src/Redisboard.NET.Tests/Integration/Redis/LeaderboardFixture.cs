@@ -10,30 +10,35 @@ public class LeaderboardFixture : IDisposable
     private ConnectionMultiplexer RedisConnection { get; init; }
 
     private IDatabase RedisDatabase { get; init; }
+
+    private const int TestDbInstance = 9;
     
-    protected LeaderboardFixture()
+    public LeaderboardFixture()
     {
         RedisConnection = ConnectionMultiplexer.Connect("localhost:6379");
-        RedisDatabase = RedisConnection.GetDatabase();
+        RedisDatabase = RedisConnection.GetDatabase(TestDbInstance);
         Instance = new Leaderboard<TestPlayer>(RedisDatabase);
-        LeaderboardId = nameof(LeaderboardFixture);
+        LeaderboardKey = DateTime.UtcNow.Ticks.ToString();
     }
-    
-    public ILeaderboard<TestPlayer> Instance { get; init; }
 
-    public string LeaderboardId { get; init; }
+    public string LeaderboardKey { get; init; }
+
+    public ILeaderboard<TestPlayer> Instance { get; init; }
 
     public void Dispose()
     {
+        RedisConnection?.Dispose();
+    }
+
+    public void DeleteLeaderboardAsync()
+    {
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(LeaderboardId),
-            CacheKey.ForEntityDataHashSet(LeaderboardId),
-            CacheKey.ForUniqueScoreSortedSet(LeaderboardId)
+            CacheKey.ForLeaderboardSortedSet(LeaderboardKey),
+            CacheKey.ForEntityDataHashSet(LeaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(LeaderboardKey)
         ];
         
         RedisDatabase.KeyDelete(keys);
-        
-        RedisConnection?.Dispose();
     }
 }

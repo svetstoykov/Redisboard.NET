@@ -5,13 +5,13 @@ local competitionType = tonumber(ARGV[3])
 
 local endIndex = startIndex + pageSize
 
-local allMembers = redis.call('zrevrange', cacheKey, startIndex, endIndex)
+local allMembers = redis.call('zrange', cacheKey, startIndex, endIndex)
 
 local result = {}
 
 for i, memberIdentifier in ipairs(allMembers) do
     local memberScore = redis.call('zscore', cacheKey, memberIdentifier)
-    local allMembersWithSameScore = redis.call('zrevrangebyscore', cacheKey, memberScore, memberScore, 'limit', 0, -1)
+    local allMembersWithSameScore = redis.call('zrangebyscore', cacheKey, memberScore, memberScore, 'limit', 0, -1)
 
     local memberRank = 0
     local relativeMemberWithSameScore = "";
@@ -24,7 +24,7 @@ for i, memberIdentifier in ipairs(allMembers) do
         relativeMemberWithSameScore = allMembersWithSameScore[#allMembersWithSameScore]
     end
 
-    memberRank = redis.call('zrevrank', cacheKey, relativeMemberWithSameScore) + 1
+    memberRank = redis.call('zrank', cacheKey, relativeMemberWithSameScore) + 1
 
     result[i] = { memberIdentifier, memberRank }
 end
