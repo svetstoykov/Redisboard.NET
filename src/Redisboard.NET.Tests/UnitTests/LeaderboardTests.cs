@@ -23,7 +23,7 @@ public class LeaderboardTests
     [Fact]
     public async Task AddEntitiesAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
-        var entities = new TestPlayer[5];
+        var entities = new[] { TestPlayer.New() };
 
         var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
 

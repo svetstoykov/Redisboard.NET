@@ -29,6 +29,9 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
             new TestPlayer { Key = "John", Score = 100 },
             new TestPlayer { Key = "Sam", Score = 50 },
         };
+        
+        // randomize array
+        _random.Shuffle(entities);
 
         await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
 
