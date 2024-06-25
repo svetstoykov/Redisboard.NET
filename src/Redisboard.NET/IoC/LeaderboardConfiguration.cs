@@ -10,7 +10,7 @@ namespace Redisboard.NET.IoC;
 public static class LeaderboardConfiguration
 {
     /// <summary>
-    /// Adds the leaderboard manager services to the service collection.
+    /// Register the leaderboard services in the service collection.
     /// </summary>
     /// <typeparam name="TEntity">The type of the leaderboard entity.</typeparam>
     /// <param name="services">The service collection to which the services are added.</param>
@@ -19,7 +19,7 @@ public static class LeaderboardConfiguration
     /// <exception cref="ArgumentNullException">
     /// Thrown when the optionsAction is null and IConnectionMultiplexer is not already registered.
     /// </exception>
-    public static IServiceCollection AddLeaderboardManager<TEntity>(
+    public static IServiceCollection AddLeaderboard<TEntity>(
         this IServiceCollection services, 
         Action<ConfigurationOptions> optionsAction = default)
         where TEntity : ILeaderboardEntity

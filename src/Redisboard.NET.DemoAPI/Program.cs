@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddLeaderboardManager<Player>(cfg =>
+builder.Services.AddLeaderboard<Player>(cfg =>
 {
     cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
@@ -26,8 +26,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// await RedisHelper.SeedAsync(app, 1, 200_000);
-
 app.MapPost("/", async (Player[] player, ILeaderboard<Player> leaderboardManager)
     => await leaderboardManager.AddEntitiesAsync(1, player));
 
@@ -35,9 +33,8 @@ app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
         ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id,
-        int offset,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default)
+        int offset = 10,
+        RankingType rankingType = RankingType.Default)
     => await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType));
 
 app.MapGet("/leaderboards/{leaderboardId}/scores", async (
@@ -45,8 +42,7 @@ app.MapGet("/leaderboards/{leaderboardId}/scores", async (
         string leaderboardId,
         double minScore,
         double maxScore,
-        RankingType rankingType = RankingType.Default,
-        CancellationToken cancellationToken = default)
+        RankingType rankingType = RankingType.Default)
     => await leaderboardManager.GetEntitiesByScoreRangeAsync(
         leaderboardId, minScore, maxScore, rankingType));
 
