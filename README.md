@@ -70,7 +70,7 @@ When querying data, you need to specify the `RankingType`, which can be one of t
 
 
 ### 1. Default Ranking 🏆
-Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking. *This is Redis Sorted Set default ranking style*
+Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking. *This is Redis Sorted Set default ranking style.*
 
 **Example:**
 ```
@@ -79,7 +79,7 @@ Ranks: [1, 2, 3, 4]
 ```
 
 
-### 2. Dense Rank 🥇🥈
+### 2. [Dense Rank](https://en.wikipedia.org/wiki/Ranking#Dense_ranking_(%221223%22_ranking)) 🥇🥈
 Items that compare equally receive the same ranking number, and the next items receive the immediately following ranking number.
 
 **Example:**
@@ -89,7 +89,7 @@ Ranks: [1, 2, 3, 3, 4, 5]
 ```
 
 
-### 3. Standard Competition 🏅
+### 3. [Standard Competition](https://en.wikipedia.org/wiki/Ranking#Standard_competition_ranking_(%221224%22_ranking)) 🏅
 Items that compare equally receive the same ranking number, and then a gap is left in the ranking numbers.
 
 **Example:**
@@ -99,7 +99,7 @@ Ranks: [1, 2, 3, 3, 5, 6]
 ```
 
 
-### 4. Modified Competition 🎖️
+### 4. [Modified Competition](https://en.wikipedia.org/wiki/Ranking#Modified_competition_ranking_(%221334%22_ranking)) 🎖️
 Leaves the gaps in the ranking numbers before the sets of equal-ranking items.
 
 **Example:**
