@@ -64,16 +64,49 @@ var result = await leaderboard.GetEntityAndNeighboursAsync(
 ```
 
 ## Ranking
-The rankings of the players inside the board are calculated on the fly via LuaScripts. Under the hood we are using multiple Redis data structures - SortedSet and HashSet. This provides us with response time of under 5ms for over 300k players in a leaderboard.
+The rankings of the players are calculated on the fly when querying the data. Under the hood we are using multiple Redis data structures (SortedSet and HashSet) and LUA scripts. This provides us with a response time of under 5ms for over 300k players in a leaderboard.
 
 When querying data, you need to specify the `RankingType`, which can be one of the following:
 
-| Ranking Type | Description | Example | Remarks |
-| ------------- | ------------- | -------------- | ------------ |
-| [**Default**](#default) | Members are ordered by score first, and if there are ties in scores, they are ordered lexicographically. There is no skipping in the records ranking. | `[{John, 100}, {Micah, 100}, {Alex, 50}, {Tim, 10}]` <br/>Ranks: `[1, 2, 3, 4]` | No skipping in ranks. |
-| [**Dense Rank**](https://en.wikipedia.org/wiki/Ranking#Dense_ranking_(%221223%22_ranking)) | Items that compare equally receive the same ranking number, and the next items receive the immediately following ranking number. | Scores: `[100, 100, 50, 40, 40]` <br/>Ranks: `[1, 1, 2, 3, 3]` | Equal scores receive the same rank. Next rank is incremented by 1. |
-| [**Standard Competition**](https://en.wikipedia.org/wiki/Ranking#Standard_competition_ranking_(%221224%22_ranking)) | Items that compare equally receive the same ranking number, and then a gap is left in the ranking numbers. | Scores: `[100, 80, 50, 50, 40, 30]` <br/>Ranks: `[1, 2, 3, 3, 5]` | Equal scores receive the same rank. Next rank is incremented by the number of tied members plus one. |
-| [**Modified Competition**](https://en.wikipedia.org/wiki/Ranking#Modified_competition_ranking_(%221334%22_ranking)) | Leaves the gaps in the ranking numbers before the sets of equal-ranking items. | Scores: `[100, 80, 50, 50, 40, 30]` <br/>Ranks: `[1, 2, 4, 4, 5]` | Equal scores receive the same rank. Next rank is incremented by 1 regardless of the number of tied members. |
+
+### 1. Default Ranking 🏆
+Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking. *This is Redis Sorted Set default ranking style*
+
+**Example:**
+```
+Scores: [{John, 100}, {Micah, 100}, {Alex, 99}, {Tim, 1}]
+Ranks: [1, 2, 3, 4]
+```
+
+
+### 2. Dense Rank 🥇🥈
+Items that compare equally receive the same ranking number, and the next items receive the immediately following ranking number.
+
+**Example:**
+```
+Scores: [100, 80, 50, 50, 40, 10]
+Ranks: [1, 2, 3, 3, 4, 5]
+```
+
+
+### 3. Standard Competition 🏅
+Items that compare equally receive the same ranking number, and then a gap is left in the ranking numbers.
+
+**Example:**
+```
+Scores: [100, 80, 50, 50, 40, 10]
+Ranks: [1, 2, 3, 3, 5, 6]
+```
+
+
+### 4. Modified Competition 🎖️
+Leaves the gaps in the ranking numbers before the sets of equal-ranking items.
+
+**Example:**
+```
+Scores: [100, 80, 50, 50, 40, 10]
+Ranks: [1, 2, 4, 4, 5, 6]
+```
 
 ## Dependencies
 - [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)
