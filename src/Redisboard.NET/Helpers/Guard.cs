@@ -44,4 +44,12 @@ internal static class Guard
             throw new ArgumentOutOfRangeException(nameof(limit), "Score range limit cannot be negative!");
         }
     }
+    
+    public static void AgainstInvalidScoreRange(double minScore, double maxScore)
+    {
+        if (minScore > maxScore)
+        {
+            throw new InvalidOperationException("Min score cannot be greater than max score!");
+        }
+    }
 }

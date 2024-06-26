@@ -2,16 +2,16 @@ using FluentAssertions;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Tests.Common.Models;
 
-namespace Redisboard.NET.Tests.Integration.Redis;
+namespace Redisboard.NET.Tests.Integration;
 
-public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, IDisposable
+public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 {
     private readonly LeaderboardFixture _leaderboardFixture;
     private readonly Random _random = new();
 
     private string LeaderboardKey => _leaderboardFixture.LeaderboardKey;
 
-    public LeaderboardIntegrationTests(LeaderboardFixture leaderboardFixture)
+    public LeaderboardTests(LeaderboardFixture leaderboardFixture)
     {
         _leaderboardFixture = leaderboardFixture;
     }
@@ -25,11 +25,11 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
         var entities = new[]
         {
             new TestPlayer { Key = "Mike", Score = 200 },
-            new TestPlayer { Key = "Alex", Score = 100 }, 
+            new TestPlayer { Key = "Alex", Score = 100 },
             new TestPlayer { Key = "John", Score = 100 },
             new TestPlayer { Key = "Sam", Score = 50 },
         };
-        
+
         // randomize array
         _random.Shuffle(entities);
 
@@ -49,7 +49,7 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
 
         result.First(p => p.Key == "John")
             .Rank.Should().Be(expectedRanks[2]);
-        
+
         result.First(p => p.Key == "Sam")
             .Rank.Should().Be(expectedRanks[3]);
     }
@@ -68,7 +68,7 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
             new TestPlayer { Key = "player4", Score = 100 },
             new TestPlayer { Key = "player5", Score = 50 },
         };
-        
+
         // randomize array
         _random.Shuffle(entities);
 
@@ -110,7 +110,7 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
             new TestPlayer { Key = "player4", Score = 100 },
             new TestPlayer { Key = "player5", Score = 50 },
         };
-        
+
         // randomize array
         _random.Shuffle(entities);
 
@@ -152,7 +152,7 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
             new TestPlayer { Key = "player4", Score = 100 },
             new TestPlayer { Key = "player5", Score = 50 },
         };
-        
+
         // randomize array
         _random.Shuffle(entities);
 
@@ -181,19 +181,191 @@ public class LeaderboardIntegrationTests : IClassFixture<LeaderboardFixture>, ID
     }
 
     [Fact]
-    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_CorrectPageSize_ReturnsLeaderboard() 
+    public async Task GetEntitiesByScoreRangeAsync_WithValidData_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const double minScore = 50;
+        const double maxScore = 100;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "Mike", Score = 200 },
+            new TestPlayer { Key = "Alex", Score = 100 },
+            new TestPlayer { Key = "John", Score = 100 },
+            new TestPlayer { Key = "Sam", Score = 50 },
+            new TestPlayer { Key = "Jim", Score = 20 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntitiesByScoreRangeAsync(
+            LeaderboardKey, minScore, maxScore);
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(3);
+
+        Assert.True(entities
+            .Where(e => e.Score is >= 50 and <= 100)
+            .All(e => result.Any(r => r.Key == e.Key)));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByScoreRangeAsync_WithOutOfRangeValidData_ReturnsEmptyLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const double minScore = 205;
+        const double maxScore = 300;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "Mike", Score = 200 },
+            new TestPlayer { Key = "Alex", Score = 100 },
+            new TestPlayer { Key = "John", Score = 100 },
+            new TestPlayer { Key = "Sam", Score = 50 },
+            new TestPlayer { Key = "Jim", Score = 20 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntitiesByScoreRangeAsync(
+            LeaderboardKey, minScore, maxScore);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetEntityRankAsync_WithValidDataDefaultRank_ReturnsRank()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "John";
+        const int expectedRank = 3;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "Mike", Score = 200 },
+            new TestPlayer { Key = "Alex", Score = 100 },
+            new TestPlayer { Key = "John", Score = 100 },
+            new TestPlayer { Key = "Sam", Score = 50 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntityRankAsync(LeaderboardKey, entityKey);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(expectedRank);
+    }
+
+    [Fact]
+    public async Task GetEntityRankAsync_WithValidDataDenseRank_ReturnsRank()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "player5";
+        const int expectedRank = 4;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "player1", Score = 250 },
+            new TestPlayer { Key = "player2", Score = 200 },
+            new TestPlayer { Key = "player3", Score = 100 },
+            new TestPlayer { Key = "player4", Score = 100 },
+            new TestPlayer { Key = "player5", Score = 50 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntityRankAsync(
+            LeaderboardKey, entityKey, RankingType.DenseRank);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(expectedRank);
+    }
+    
+    [Fact]
+    public async Task GetEntityRankAsync_WithValidDataStandardCompetition_ReturnsRank()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "player4";
+        const int expectedRank = 3;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "player1", Score = 250 },
+            new TestPlayer { Key = "player2", Score = 200 },
+            new TestPlayer { Key = "player3", Score = 100 },
+            new TestPlayer { Key = "player4", Score = 100 },
+            new TestPlayer { Key = "player5", Score = 50 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntityRankAsync(
+            LeaderboardKey, entityKey, RankingType.StandardCompetition);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(expectedRank);
+    }
+    
+    [Fact]
+    public async Task GetEntityRankAsync_WithValidDataModifiedCompetition_ReturnsRank()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "player4";
+        const int expectedRank = 4;
+
+        var entities = new[]
+        {
+            new TestPlayer { Key = "player1", Score = 250 },
+            new TestPlayer { Key = "player2", Score = 200 },
+            new TestPlayer { Key = "player3", Score = 100 },
+            new TestPlayer { Key = "player4", Score = 100 },
+            new TestPlayer { Key = "player5", Score = 50 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        var result = await leaderboard.GetEntityRankAsync(
+            LeaderboardKey, entityKey, RankingType.ModifiedCompetition);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(expectedRank);
+    }
+
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_CorrectPageSize_ReturnsLeaderboard()
         => await TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType.Default);
 
     [Fact]
-    public async Task GetEntityAndNeighboursAsync_WithValidDataModifiedCompetitionRanking_CorrectPageSize_ReturnsLeaderboard() 
+    public async Task
+        GetEntityAndNeighboursAsync_WithValidDataModifiedCompetitionRanking_CorrectPageSize_ReturnsLeaderboard()
         => await TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType.ModifiedCompetition);
 
     [Fact]
-    public async Task GetEntityAndNeighboursAsync_WithValidDataStandardCompetitionRanking_CorrectPageSize_ReturnsLeaderboard() 
+    public async Task
+        GetEntityAndNeighboursAsync_WithValidDataStandardCompetitionRanking_CorrectPageSize_ReturnsLeaderboard()
         => await TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType.StandardCompetition);
 
     [Fact]
-    public async Task GetEntityAndNeighboursAsync_WithValidDataDenseRankRanking_CorrectPageSize_ReturnsLeaderboard() 
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDenseRankRanking_CorrectPageSize_ReturnsLeaderboard()
         => await TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType.DenseRank);
 
     private async Task TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType rankingType)

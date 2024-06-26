@@ -97,12 +97,16 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
         Guard.AgainstInvalidScoreRangeLimit(minScore);
         Guard.AgainstInvalidScoreRangeLimit(maxScore);
+        Guard.AgainstInvalidScoreRange(minScore, maxScore);
 
+        var invertedMaxScore = -minScore;
+        var invertedMinScore = -maxScore;
+        
         var entitiesInRange = await _redis
             .SortedSetRangeByScoreAsync(
                 CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-                minScore,
-                maxScore);
+                invertedMinScore,
+                invertedMaxScore);
 
         if (!entitiesInRange.Any())
         {
@@ -172,8 +176,8 @@ internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var entity = await GetLeaderboardAsync(
             leaderboardKey, playerIndex.Value, singleUserPageSize, rankingType);
-
-        return entity.Rank;
+        
+        return entity.First().Rank;
     }
 
     public async Task DeleteEntityAsync(object leaderboardKey, string entityKey)

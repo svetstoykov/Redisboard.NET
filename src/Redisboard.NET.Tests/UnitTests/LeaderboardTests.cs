@@ -182,6 +182,15 @@ public class LeaderboardTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 0, -100));
     }
+    
+    [Fact]
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidScoreRange_ThrowsInvalidOperationException()
+    {
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 90, 20));
+    }
 
     [Fact]
     public async Task GetEntityDataAsync_WithValidEntityKey_ReturnsEntityData()
@@ -438,7 +447,29 @@ public class LeaderboardTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task GetEntityRankAsync_WithInvalidLeaderboardKey_ThrowsArgumentException()
+    {
+        const string leaderboardKey = default;
+        var entityKey = Guid.NewGuid().ToString();
 
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.GetEntityRankAsync(leaderboardKey, entityKey)); 
+    }
+
+    [Fact]
+    public async Task GetEntityRankAsync_WithInvalidEntityKey_ThrowsArgumentException()
+    {
+        const string entityKey = default;
+
+        var leaderboard = new Leaderboard<TestPlayer>(_mockRedis.Object);
+        
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.GetEntityRankAsync(LeaderboardKey, entityKey));
+    }
+    
     [Fact]
     public async Task DeleteAsync_WithInvalidLeaderboardKey_ThrowsArgumentException()
     {

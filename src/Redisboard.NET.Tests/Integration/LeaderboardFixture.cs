@@ -3,7 +3,7 @@ using Redisboard.NET.Interfaces;
 using Redisboard.NET.Tests.Common.Models;
 using StackExchange.Redis;
 
-namespace Redisboard.NET.Tests.Integration.Redis;
+namespace Redisboard.NET.Tests.Integration;
 
 public class LeaderboardFixture : IDisposable
 {
