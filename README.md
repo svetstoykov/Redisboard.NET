@@ -7,7 +7,7 @@ Redisboard.NET is a optimized .NET library designed to handle leaderboards effic
 ## 🚧 UNDER CONSTRUCTION (not available on NuGet) 🚧
 
 **TODO:**  
-🕐 Implement integration tests - *In Progress*  
+✅ Implement integration tests   
 ❌ Add benchmarks  
 ❌ Distribute to NuGet 
 
