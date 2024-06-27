@@ -370,3 +370,4 @@ FodyWeavers.xsd
 **/.idea/
 *.sln.iml
 src/.DS_Store
+.DS_Store
