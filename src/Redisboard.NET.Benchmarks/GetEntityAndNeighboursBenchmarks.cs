@@ -1,11 +1,13 @@
 using BenchmarkDotNet.Attributes;
 using Redisboard.NET.Benchmarks.Helpers;
 using Redisboard.NET.Common.Models;
+using Redisboard.NET.Enumerations;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Benchmarks;
 
 [MemoryDiagnoser]
+[MinColumn, MaxColumn, MeanColumn, MedianColumn]
 public class GetEntityAndNeighboursBenchmarks
 {
     private Leaderboard<Player> _leaderboard;
@@ -24,11 +26,37 @@ public class GetEntityAndNeighboursBenchmarks
         await _leaderboard.AddEntitiesAsync(Constants.LeaderboardKey, [_benchmarkPlayer]);
     }
     
+    [Benchmark(Baseline = true)]
+    [ArgumentsSource(nameof(Data))]
+    public async Task GetEntityAndNeighbours_DefaultRanking(int offset)
+    {
+        await _leaderboard.GetEntityAndNeighboursAsync(
+            Constants.LeaderboardKey, 
+            _benchmarkPlayer.Key, 
+            offset,
+            RankingType.Default);
+    }
+    
     [Benchmark]
     [ArgumentsSource(nameof(Data))]
-    public async Task GetEntityAndNeighbours(int offset)
+    public async Task GetEntityAndNeighbours_DenseRanking(int offset)
     {
-        await _leaderboard.GetEntityAndNeighboursAsync(Constants.LeaderboardKey, _benchmarkPlayer.Key, offset);
+        await _leaderboard.GetEntityAndNeighboursAsync(
+            Constants.LeaderboardKey, 
+            _benchmarkPlayer.Key, 
+            offset,
+            RankingType.DenseRank);
+    }
+    
+    [Benchmark]
+    [ArgumentsSource(nameof(Data))]
+    public async Task GetEntityAndNeighbours_Competition(int offset)
+    {
+        await _leaderboard.GetEntityAndNeighboursAsync(
+            Constants.LeaderboardKey, 
+            _benchmarkPlayer.Key, 
+            offset,
+            RankingType.StandardCompetition);
     }
     
     public IEnumerable<object[]> Data()
@@ -36,6 +64,5 @@ public class GetEntityAndNeighboursBenchmarks
         yield return [10];
         yield return [20];
         yield return [50];
-        yield return [100];
     }
 }
