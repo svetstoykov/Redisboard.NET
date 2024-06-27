@@ -12,16 +12,20 @@ Redisboard.NET is a optimized .NET library designed to handle leaderboards effic
 ❌ Distribute to NuGet 
 
 ## Quick Start
+First up, let's get a Redis server ready. Docker makes this super easy.
 
-To use Redisboard.NET, you must set up a `Leaderboard<T>` class and execute it using a resilience pipeline. The library leverages Redis sorted sets for performance and uses LUA scripts for advanced querying capabilities.
+After you've got Docker [set up on your machine](https://docs.docker.com/engine/install/), just pop open your terminal and run:
+```sh
+docker run --name my-redis-server -d redis
+```
 
-To get started, first add the [Redisboard.NET](https://www.nuget.org/packages/Redisboard.NET/) package to your project by running the following command:
+With your Redis server humming along, it's time to install the [Redisboard.NET](https://www.nuget.org/packages/Redisboard.NET/) package with this quick command:
 
 ```sh
 dotnet add package Redisboard.NET
 ```
 
-You can create and configure a Leaderboard<T> using the LeaderboardBuilder class as shown below:
+In your project define your leaderboard entity. In should implement the `ILeaderboardEntity`
 
 <!-- snippet: quick-start -->
 ```cs
@@ -54,7 +58,8 @@ await leaderboard.AddEntitiesAsync(leaderboardKey, players);
 var result = await leaderboard.GetEntityAndNeighboursAsync(
     leaderboardKey, "player1", RankingType.Default);
 ```
-If you wish to use **Dependency Injection** you can install the [Redisboard.NET.Extensions]() package and register the Leaderboard in your `IServiceCollection`  
+### **Dependency Injection** 
+If you wish to use DI should install the [Redisboard.NET.Extensions]() package and register the Leaderboard in your `IServiceCollection`  
 
 ```cs
 // Add to IServiceCollection
@@ -68,14 +73,40 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 
 *\* Config delegate is not required, if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis))*
 
+Once registered, your need to inject the `ILeaderboard<Player>` interface via the constructor
+
+``` cs
+public class MyService
+{
+    private readonly ILeaderboard<Player> _leaderboard;
+
+    public MyService(ILeaderboard<Player> leaderboard)
+    {
+        _leaderboard = leaderboard;
+    }
+    
+    public async Task AddPlayersAsync(Player[] players)
+    {
+        const string leaderboardKey = "your_leaderboard_key"
+
+        await _leaderboard.AddEntitiesAsync(leaderboardKey, players);
+    }
+}
+```
+
+### DemoAPI
+This repository also includes a very simple API project, which shows how you can setup the Leaderboard.  You can find the project [here](
+https://github.com/svetstoykov/Redisboard.NET/tree/main/src/Redisboard.NET.DemoAPI)
+
 ## Ranking
-The rankings of the players are calculated on the fly when querying the data. Under the hood we are using multiple Redis data structures (SortedSet and HashSet) and LUA scripts. This provides us with a response time of under 5ms for over 300k players in a leaderboard.
+The rankings of the players are calculated on the fly when querying the data. Under the hood we are using multiple Redis data structures ([Sorted Set](https://redis.io/docs/latest/develop/data-types/sorted-sets/) and [Hash](https://redis.io/docs/latest/develop/data-types/hashes/)) and LUA scripts for queryin. This provides us with a **response time of under 1ms for over 500k players** in a leaderboard.
 
 When querying data, you need to specify the `RankingType`, which can be one of the following:
 
-
 ### 1. Default Ranking 🏆
-Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking. *This is Redis Sorted Set default ranking style.*
+Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking.  
+
+(*This is Redis Sorted Set default ranking style.*)
 
 **Example:**
 ```
