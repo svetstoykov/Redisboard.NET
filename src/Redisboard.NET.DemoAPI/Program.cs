@@ -1,7 +1,7 @@
 using Redisboard.NET.DemoAPI.Models;
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Extensions;
 using Redisboard.NET.Interfaces;
-using Redisboard.NET.IoC;
 
 var builder = WebApplication.CreateBuilder(args);
 

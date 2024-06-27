@@ -7,7 +7,7 @@ using StackExchange.Redis;
 
 namespace Redisboard.NET;
 
-internal class Leaderboard<TEntity> : ILeaderboard<TEntity>
+public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity
 {
     private readonly IDatabase _redis;

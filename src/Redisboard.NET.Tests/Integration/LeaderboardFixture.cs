@@ -23,7 +23,7 @@ public class LeaderboardFixture : IDisposable
 
     public string LeaderboardKey { get; init; }
 
-    public ILeaderboard<TestPlayer> Instance { get; init; }
+    public Leaderboard<TestPlayer> Instance { get; init; }
 
     public void Dispose()
     {

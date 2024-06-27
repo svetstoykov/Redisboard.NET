@@ -1,13 +1,15 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
 using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
 
-namespace Redisboard.NET.IoC;
+namespace Redisboard.NET.Extensions;
 
 /// <summary>
 /// Extension methods for IServiceCollection to add leaderboard manager services.
 /// </summary>
-public static class LeaderboardConfiguration
+public static class LeaderboardServiceCollectionExtensions
 {
     /// <summary>
     /// Register the leaderboard services in the service collection.
@@ -33,8 +35,8 @@ public static class LeaderboardConfiguration
 
         if (optionsAction == default)
         {
-            // todo add message
-            throw new ArgumentNullException();
+            throw new ArgumentNullException(
+                nameof(optionsAction), "An options delegate must be provided if IConnectionMultiplexer is not already registered.");
         }
 
         var redisOptions = new ConfigurationOptions();

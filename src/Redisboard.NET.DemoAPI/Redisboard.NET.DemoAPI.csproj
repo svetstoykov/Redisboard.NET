@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Redisboard.NET.Extensions\Redisboard.NET.Extensions.csproj" />
       <ProjectReference Include="..\Redisboard.NET\Redisboard.NET.csproj" />
     </ItemGroup>
 
