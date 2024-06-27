@@ -1,6 +1,6 @@
 using FluentAssertions;
+using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
-using Redisboard.NET.Tests.Common.Models;
 
 namespace Redisboard.NET.Tests.Integration;
 
@@ -24,10 +24,10 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "Mike", Score = 200 },
-            new TestPlayer { Key = "Alex", Score = 100 },
-            new TestPlayer { Key = "John", Score = 100 },
-            new TestPlayer { Key = "Sam", Score = 50 },
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 50 },
         };
 
         // randomize array
@@ -62,11 +62,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -104,11 +104,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -146,11 +146,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -189,11 +189,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "Mike", Score = 200 },
-            new TestPlayer { Key = "Alex", Score = 100 },
-            new TestPlayer { Key = "John", Score = 100 },
-            new TestPlayer { Key = "Sam", Score = 50 },
-            new TestPlayer { Key = "Jim", Score = 20 },
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 50 },
+            new Player { Key = "Jim", Score = 20 },
         };
 
         // randomize array
@@ -221,11 +221,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "Mike", Score = 200 },
-            new TestPlayer { Key = "Alex", Score = 100 },
-            new TestPlayer { Key = "John", Score = 100 },
-            new TestPlayer { Key = "Sam", Score = 50 },
-            new TestPlayer { Key = "Jim", Score = 20 },
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 50 },
+            new Player { Key = "Jim", Score = 20 },
         };
 
         // randomize array
@@ -249,10 +249,10 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "Mike", Score = 200 },
-            new TestPlayer { Key = "Alex", Score = 100 },
-            new TestPlayer { Key = "John", Score = 100 },
-            new TestPlayer { Key = "Sam", Score = 50 },
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 50 },
         };
 
         // randomize array
@@ -275,11 +275,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -303,11 +303,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -331,11 +331,11 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = new[]
         {
-            new TestPlayer { Key = "player1", Score = 250 },
-            new TestPlayer { Key = "player2", Score = 200 },
-            new TestPlayer { Key = "player3", Score = 100 },
-            new TestPlayer { Key = "player4", Score = 100 },
-            new TestPlayer { Key = "player5", Score = 50 },
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 },
         };
 
         // randomize array
@@ -383,7 +383,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         var entities = Enumerable
             .Range(0, playersCount)
-            .Select(i => new TestPlayer { Score = i, Key = $"player{i}" })
+            .Select(i => new Player { Score = i, Key = $"player{i}" })
             .ToArray();
 
         // get a player to search for

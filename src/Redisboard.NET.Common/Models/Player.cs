@@ -1,8 +1,8 @@
 ﻿using Redisboard.NET.Interfaces;
 
-namespace Redisboard.NET.Tests.Common.Models;
+namespace Redisboard.NET.Common.Models;
 
-public class TestPlayer : ILeaderboardEntity
+public class Player : ILeaderboardEntity
 {
     public string Key { get; set; }
 
@@ -12,18 +12,24 @@ public class TestPlayer : ILeaderboardEntity
 
     public string Username { get; set; }
 
+    public string FirstName { get; set; }
+    
+    public string LastName { get; set; }
+    
     public DateTime EntryDate { get; set; }
 
-    public static TestPlayer New()
+    public static Player New()
     {
         var random = new Random();
 
-        return new TestPlayer
+        return new Player
         {
             Key = Guid.NewGuid().ToString(),
             EntryDate = DateTime.Now,
             Score = random.Next(),
-            Username = $"user_{random.Next()}"
+            Username = $"user_{random.Next()}",
+            FirstName = $"first_{random.Next()}",
+            LastName = $"last_{random.Next()}"
         };
     }
 }

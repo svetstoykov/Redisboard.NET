@@ -1,4 +1,4 @@
-using Redisboard.NET.DemoAPI.Models;
+using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Extensions;
 using Redisboard.NET.Interfaces;
@@ -44,6 +44,5 @@ app.MapGet("/leaderboards/{leaderboardId}/scores", async (
         RankingType rankingType = RankingType.Default)
     => await leaderboardManager.GetEntitiesByScoreRangeAsync(
         leaderboardId, minScore, maxScore, rankingType));
-
 
 app.Run();

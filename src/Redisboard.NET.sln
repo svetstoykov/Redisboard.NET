@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.Tests", "Red
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.Extensions", "Redisboard.NET.Extensions\Redisboard.NET.Extensions.csproj", "{E06205FF-7272-4082-B80E-E2168F5164FB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.Benchmarks", "Redisboard.NET.Benchmarks\Redisboard.NET.Benchmarks.csproj", "{F3CE69D1-A94B-4BBC-A3AF-03D0EA6C507E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Redisboard.NET.Common", "Redisboard.NET.Common\Redisboard.NET.Common.csproj", "{F67E425C-EC4C-4C94-BBA0-0FB13F82FA65}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,13 @@ Global
 		{E06205FF-7272-4082-B80E-E2168F5164FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E06205FF-7272-4082-B80E-E2168F5164FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E06205FF-7272-4082-B80E-E2168F5164FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3CE69D1-A94B-4BBC-A3AF-03D0EA6C507E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3CE69D1-A94B-4BBC-A3AF-03D0EA6C507E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3CE69D1-A94B-4BBC-A3AF-03D0EA6C507E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3CE69D1-A94B-4BBC-A3AF-03D0EA6C507E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F67E425C-EC4C-4C94-BBA0-0FB13F82FA65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F67E425C-EC4C-4C94-BBA0-0FB13F82FA65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F67E425C-EC4C-4C94-BBA0-0FB13F82FA65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F67E425C-EC4C-4C94-BBA0-0FB13F82FA65}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
