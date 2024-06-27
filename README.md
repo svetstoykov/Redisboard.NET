@@ -115,7 +115,7 @@ Ranks: [1, 2, 4, 4, 5, 6]
 
 ## Benchmarks 🚀
 
-These benchmarks have been run over a leaderboard with **500,000 entries** of type:
+These benchmarks have been run (on M3 Macbook Air) over a leaderboard with **500,000 entries** of type:
 ```cs
 public class Player : ILeaderboardEntity
 {
@@ -129,8 +129,9 @@ public class Player : ILeaderboardEntity
 }
 ```
 
-We are testing the most common method - getting a user with their neighbors.
+We are benchmarking the most common method - getting a entity and their neighbors with an relevant offset*
 
+*\*The offset says how many neighbours above and below the targeted entity we should take*
 
 <table>
   <thead>
