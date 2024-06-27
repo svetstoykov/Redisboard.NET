@@ -115,7 +115,21 @@ Ranks: [1, 2, 4, 4, 5, 6]
 
 ## Benchmarks 🚀
 
-These benchmarks have been run over a leaderboard with **500,000 entries**. We are testing the most common method - getting a user with their neighbors. Impressively, all methods execute in under **1 millisecond**! ⚡
+These benchmarks have been run over a leaderboard with **500,000 entries** of type:
+```cs
+public class Player : ILeaderboardEntity
+{
+    public string Key { get; set; }
+    public long Rank { get; set; }
+    public double Score { get; set; }
+    public string Username { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public DateTime EntryDate { get; set; }
+}
+```
+
+We are testing the most common method - getting a user with their neighbors.
 
 
 <table>
