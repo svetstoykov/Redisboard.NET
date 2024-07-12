@@ -164,6 +164,8 @@ We are benchmarking the most common method - getting a entity and their neighbor
 
 *\*The offset says how many neighbours above and below the targeted entity we should take*
 
+`Leaderboard.Count: 500_000`
+
 <table>
   <thead>
     <tr>
