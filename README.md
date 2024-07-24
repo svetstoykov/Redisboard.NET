@@ -164,8 +164,6 @@ We are benchmarking the most common method - getting a entity and their neighbor
 
 *\*The offset says how many neighbours above and below the targeted entity we should take*
 
-`Leaderboard.Count: 500_000`
-
 <table>
   <thead>
     <tr>
@@ -183,7 +181,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
   </thead>
   <tbody>
     <tr>
-      <td>GetEntityAndNeighbours_DefaultRanking</td>
+      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
       <td>10</td>
       <td>0.329 ms</td>
       <td>0.010 ms</td>
@@ -195,7 +193,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>31.49 KB</td>
     </tr>
     <tr >
-      <td>GetEntityAndNeighbours_DenseRanking</td>
+      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
       <td>10</td>
       <td>0.341 ms</td>
       <td>0.009 ms</td>
@@ -207,7 +205,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>43 KB</td>
     </tr>
     <tr>
-      <td>GetEntityAndNeighbours_Competition</td>
+      <td>GetEntityAndNeighbours_Competition_500K</td>
       <td>10</td>
       <td>0.371 ms</td>
       <td>0.007 ms</td>
@@ -219,7 +217,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>46.97 KB</td>
     </tr>
     <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_DefaultRanking</td>
+      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
       <td>20</td>
       <td>0.410 ms</td>
       <td>0.017 ms</td>
@@ -231,7 +229,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>59.84 KB</td>
     </tr>
     <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_DenseRanking</td>
+      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
       <td>20</td>
       <td>0.509 ms</td>
       <td>0.010 ms</td>
@@ -243,7 +241,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>75.99 KB</td>
     </tr>
     <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_Competition</td>
+      <td>GetEntityAndNeighbours_Competition_500K</td>
       <td>20</td>
       <td>0.544 ms</td>
       <td>0.008 ms</td>
@@ -255,7 +253,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>80.09 KB</td>
     </tr>
     <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_DefaultRanking</td>
+      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
       <td>50</td>
       <td>0.503 ms</td>
       <td>0.006 ms</td>
@@ -267,7 +265,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>142.16 KB</td>
     </tr>
     <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_DenseRanking</td>
+      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
       <td>50</td>
       <td>0.620 ms</td>
       <td>0.010 ms</td>
@@ -279,7 +277,7 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <td>171.78 KB</td>
     </tr>
     <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_Competition</td>
+      <td>GetEntityAndNeighbours_Competition_500K</td>
       <td>50</td>
       <td>0.701 ms</td>
       <td>0.010 ms</td>

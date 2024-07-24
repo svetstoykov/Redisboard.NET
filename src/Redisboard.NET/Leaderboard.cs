@@ -21,7 +21,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         : this(connectionMultiplexer.GetDatabase())
     {
     }
-
+    
     public async Task AddEntitiesAsync(
         object leaderboardKey,
         TEntity[] entities,
@@ -333,7 +333,6 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
             var entity = JsonSerializer.Deserialize<TEntity>(data);
 
             entity.Rank = entityKeysWithRank[entity.Key];
-            entity.Score *= -1;
 
             leaderboard[i] = entity;
         }

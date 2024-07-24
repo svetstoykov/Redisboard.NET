@@ -28,7 +28,7 @@ public class GetEntityAndNeighboursBenchmarks
     
     [Benchmark(Baseline = true)]
     [ArgumentsSource(nameof(Data))]
-    public async Task GetEntityAndNeighbours_DefaultRanking(int offset)
+    public async Task GetEntityAndNeighbours_DefaultRanking_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
             Constants.LeaderboardKey, 
@@ -39,7 +39,7 @@ public class GetEntityAndNeighboursBenchmarks
     
     [Benchmark]
     [ArgumentsSource(nameof(Data))]
-    public async Task GetEntityAndNeighbours_DenseRanking(int offset)
+    public async Task GetEntityAndNeighbours_DenseRanking_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
             Constants.LeaderboardKey, 
@@ -50,7 +50,7 @@ public class GetEntityAndNeighboursBenchmarks
     
     [Benchmark]
     [ArgumentsSource(nameof(Data))]
-    public async Task GetEntityAndNeighbours_Competition(int offset)
+    public async Task GetEntityAndNeighbours_Competition_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
             Constants.LeaderboardKey, 

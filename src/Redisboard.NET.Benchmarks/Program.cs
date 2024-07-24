@@ -6,3 +6,5 @@ using Redisboard.NET.Benchmarks.Helpers;
 await BenchmarkLeaderboardHelper.InitializeBenchmarksLeaderboardAsync();
 
 BenchmarkRunner.Run<GetEntityAndNeighboursBenchmarks>();
+
+await BenchmarkLeaderboardHelper.CleanUpBenchmarksLeaderboardAsync();

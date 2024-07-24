@@ -24,6 +24,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Redisboard.NET.Tests" />
+        <InternalsVisibleTo Include="Redisboard.NET.Benchmarks" />
     </ItemGroup>
 
     <ItemGroup>
