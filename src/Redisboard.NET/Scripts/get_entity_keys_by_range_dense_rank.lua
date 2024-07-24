@@ -15,7 +15,7 @@ for i = 1, #zrangeResult, 2 do
 
     local memberUniqueRank = redis.call('zrank', uniqueScoresSortedSetCacheKey, tostring(memberScore))
 
-    table.insert(result, { memberIdentifier, memberUniqueRank + 1 })
+    table.insert(result, { memberIdentifier, memberUniqueRank + 1, memberScore })
 end
 
 return result

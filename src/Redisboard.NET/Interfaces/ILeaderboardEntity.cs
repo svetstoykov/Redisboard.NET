@@ -1,4 +1,5 @@
 ﻿using Redisboard.NET.Enumerations;
+using StackExchange.Redis;
 
 namespace Redisboard.NET.Interfaces;
 
@@ -10,7 +11,7 @@ public interface ILeaderboardEntity
     /// <summary>
     /// Gets the unique identifier for the leaderboard entity.
     /// </summary>
-    string Key { get; }
+    RedisValue Key { get; }
     
     /// <summary>
     /// Gets or sets the rank of the entity in the leaderboard, determined by the specified ranking type, when retrieving the records.

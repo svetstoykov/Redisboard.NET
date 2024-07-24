@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Resources;
 
 namespace Redisboard.NET.Helpers;

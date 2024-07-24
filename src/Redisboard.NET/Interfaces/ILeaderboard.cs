@@ -1,4 +1,5 @@
 ﻿using Redisboard.NET.Enumerations;
+using StackExchange.Redis;
 
 namespace Redisboard.NET.Interfaces;
 
@@ -10,17 +11,40 @@ public interface ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity
 {
     /// <summary>
-    /// Adds all the specified entities with the specified scores to the leaderboard at key.
-    /// If a specified entity is already a member of the leaderboard, only the score is updated and the entity reinserted at the right position to ensure the correct ordering.
+    /// Adds all the specified entities keys to the leaderboard as new entities with a score of 0.
+    /// If a specified entity is already a member of the leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Unique identifier for the leaderboard</param>
     /// <param name="entities">The entity/entities to add to the leaderboard.</param>
-    /// <param name="fireAndForget">Utilizes a fire-and-forget approach to saving data. It has an improved performance over waiting for the response from the server, however keep in mind that you won't notice any server errors that get reported.</param>
+    /// <param name="fireAndForget">
+    /// If set to <c>true</c>, the operation will be executed without waiting for a response from Redis.
+    /// This can improve performance but provides no guarantee that the operation was successful.
+    /// </param>
     Task AddEntitiesAsync(
-        object leaderboardKey,
+        RedisValue leaderboardKey,
         TEntity[] entities,
         bool fireAndForget = default);
-    
+
+    /// <summary>
+    /// Asynchronously updates the score of an entity in the leaderboard.
+    /// </summary>
+    /// <param name="leaderboardKey">The key identifying the leaderboard.</param>
+    /// <param name="entityKey">The unique identifier of the entity whose score is being updated.</param>
+    /// <param name="newScore">The new score to be assigned to the entity.</param>
+    /// <param name="fireAndForget">
+    /// If set to <c>true</c>, the operation will be executed without waiting for a response from Redis.
+    /// This can improve performance but provides no guarantee that the operation was successful.
+    /// </param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the leaderboardKey, entityKey, or newScore is invalid.
+    /// </exception>
+    Task UpdateEntityScoreAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double newScore,
+        bool fireAndForget = false);
+
     /// <summary>
     /// Retrieves a leaderboard entity by its unique identifier, including its neighbors with a defined offset.
     /// </summary>
@@ -30,8 +54,8 @@ public interface ILeaderboard<TEntity>
     /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
     /// <returns>An array of leaderboard entities with the requested member in the middle.</returns>
     Task<TEntity[]> GetEntityAndNeighboursAsync(
-        object leaderboardKey,
-        string entityKey,
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
         int offset = 10,
         RankingType rankingType = RankingType.Default);
 
@@ -44,7 +68,7 @@ public interface ILeaderboard<TEntity>
     /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
     /// <returns>A subset of the leaderboard based on score range.</returns>
     Task<TEntity[]> GetEntitiesByScoreRangeAsync(
-        object leaderboardKey,
+        RedisValue leaderboardKey,
         double minScore,
         double maxScore,
         RankingType rankingType = RankingType.Default);
@@ -56,8 +80,8 @@ public interface ILeaderboard<TEntity>
     /// <param name="entityKey">The identifier of the entity whose data is to be retrieved.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the entity data.</returns>
     Task<TEntity> GetEntityDataAsync(
-        object leaderboardKey, 
-        string entityKey);
+        RedisValue leaderboardKey,
+        RedisValue entityKey);
 
     /// <summary>
     /// Retrieves the score of a specific entity from the leaderboard asynchronously.
@@ -65,8 +89,9 @@ public interface ILeaderboard<TEntity>
     /// <param name="leaderboardKey">The identifier of the leaderboard.</param>
     /// <param name="entityKey">The identifier of the entity whose score is to be retrieved.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the score of the entity.</returns>
-    Task<double?> GetEntityScoreAsync(object leaderboardKey,
-        string entityKey);
+    Task<double?> GetEntityScoreAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey);
 
     /// <summary>
     /// Retrieves the rank of a specific entity in the leaderboard asynchronously.
@@ -75,7 +100,9 @@ public interface ILeaderboard<TEntity>
     /// <param name="entityKey">The identifier of the entity whose rank is to be retrieved.</param>
     /// <param name="rankingType"></param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the rank of the entity.</returns>
-    Task<long?> GetEntityRankAsync(object leaderboardKey, string entityKey,
+    Task<long?> GetEntityRankAsync(
+        RedisValue leaderboardKey, 
+        RedisValue entityKey,
         RankingType rankingType = RankingType.Default);
 
     /// <summary>
@@ -84,19 +111,21 @@ public interface ILeaderboard<TEntity>
     /// <param name="leaderboardKey"></param>
     /// <param name="entityKey">The identifier of the entity to be removed.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task DeleteEntityAsync(object leaderboardKey, string entityKey);
+    Task DeleteEntityAsync(
+        RedisValue leaderboardKey, 
+        RedisValue entityKey);
 
     /// <summary>
     /// Retrieves the size of the leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">The identifier of the leaderboard.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the size of the leaderboard.</returns>
-    Task<long> GetSizeAsync(object leaderboardKey);
+    Task<long> GetSizeAsync(RedisValue leaderboardKey);
 
     /// <summary>
     /// Deletes the leaderboard by provided <param>leaderboardKey</param>. If the leaderboard does not exist, nothing happens.
     /// </summary>
     /// <param name="leaderboardKey"></param>
     /// <returns></returns>
-    Task DeleteAsync(object leaderboardKey);
+    Task DeleteAsync(RedisValue leaderboardKey);
 }

@@ -29,11 +29,13 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
             new Player { Key = "John", Score = 100 },
             new Player { Key = "Sam", Score = 50 },
         };
-
-        // randomize array
-        _random.Shuffle(entities);
-
+        
         await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        foreach (var entity in entities)
+        {
+            await leaderboard.UpdateEntityScoreAsync()
+        }
 
         var result = await leaderboard.GetEntityAndNeighboursAsync(
             LeaderboardKey, "Alex", offset: 10);
@@ -349,7 +351,35 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         result.Should().NotBeNull();
         result.Value.Should().Be(expectedRank);
     }
+    
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithValidData_ReturnsUpdatedScore()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "John";
+        const double newScore = 150;
 
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 50 },
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+
+        await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entityKey, newScore);
+
+        var result = await leaderboard.GetEntityScoreAsync(LeaderboardKey, entityKey);
+
+        result.Should().NotBeNull();
+        result.Value.Should().Be(newScore);
+    }
+    
     [Fact]
     public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_CorrectPageSize_ReturnsLeaderboard()
         => await TestCorrectPageSizeForGetEntityAndNeighboursAsync(RankingType.Default);
@@ -399,6 +429,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         result.Should().HaveCount((offset * 2) + 1); // +1 for the player itself
 
         result.Should().OnlyContain(r => entities.Any(e => e.Key == r.Key));
+        result.Should().OnlyContain(r => r.Score > 0);
     }
 
     public void Dispose() => _leaderboardFixture?.DeleteLeaderboardAsync();

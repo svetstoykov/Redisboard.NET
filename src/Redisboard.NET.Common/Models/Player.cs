@@ -1,10 +1,11 @@
 ﻿using Redisboard.NET.Interfaces;
+using StackExchange.Redis;
 
 namespace Redisboard.NET.Common.Models;
 
 public class Player : ILeaderboardEntity
 {
-    public string Key { get; set; }
+    public RedisValue Key { get; set; }
 
     public long Rank { get; set; }
 
