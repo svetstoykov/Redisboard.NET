@@ -18,43 +18,45 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         _redis = redis;
     }
 
-    public Leaderboard(IConnectionMultiplexer connectionMultiplexer)
-        : this(connectionMultiplexer.GetDatabase())
+    public Leaderboard(IConnectionMultiplexer connectionMultiplexer, int databaseIndex = 0)
+        : this(connectionMultiplexer.GetDatabase(databaseIndex))
     {
     }
     
     public async Task AddEntitiesAsync(
         RedisValue leaderboardKey,
-        TEntity[] entities,
+        TEntity entity,
         bool fireAndForget = false)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidLeaderboardEntities<TEntity>(entities);
-
-        var (sortedSetEntries, hashSetEntries, uniqueScoreEntries) =
-            PrepareEntitiesForLeaderboardAddOperation(entities);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidLeaderboardEntities(entity);
 
         var commandFlags = fireAndForget
             ? CommandFlags.FireAndForget
             : CommandFlags.None;
 
         var transaction = _redis.CreateTransaction();
-
+        
+        const double initialScore = default;
+        
         transaction.SortedSetAddAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            sortedSetEntries,
-            commandFlags);
-
-        transaction.HashSetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardKey),
-            hashSetEntries,
+            entity.Key,
+            initialScore,
             commandFlags);
 
         transaction.SortedSetAddAsync(
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            uniqueScoreEntries,
+            entity.Key,
+            initialScore,
             commandFlags);
-
+        
+        transaction.HashSetAsync(
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            entity.Key,
+            JsonSerializer.Serialize(entity),
+            flags: commandFlags);
+        
         await TryExecuteTransactionAsync(
             transaction, "Failed to add entities to leaderboard!");
     }
@@ -65,8 +67,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         double newScore,
         bool fireAndForget = false)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
         Guard.AgainstInvalidScore(newScore);
 
         var invertedScore = -newScore;
@@ -99,8 +101,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         int offset = 10,
         RankingType rankingType = RankingType.Default)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
         Guard.AgainstInvalidOffset(offset);
         
         var playerIndex = await _redis
@@ -129,7 +131,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         double maxScore,
         RankingType rankingType = RankingType.Default)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidScoreRangeLimit(minScore);
         Guard.AgainstInvalidScoreRangeLimit(maxScore);
         Guard.AgainstInvalidScoreRange(minScore, maxScore);
@@ -160,8 +162,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task<TEntity> GetEntityDataAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
         
         var hashEntry = await _redis.HashGetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
@@ -178,8 +180,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task<double?> GetEntityScoreAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
         
         var score = await _redis.SortedSetScoreAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
@@ -195,8 +197,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         RedisValue entityKey,
         RankingType rankingType = RankingType.Default)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
         
         const int singleUserPageSize = 1;
 
@@ -223,8 +225,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task DeleteEntityAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
-        Guard.AgainstInvalidEntityKey(entityKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
 
         var transaction = _redis.CreateTransaction();
         
@@ -245,14 +247,14 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     public async Task<long> GetSizeAsync(RedisValue leaderboardKey)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
 
         return await _redis.HashLengthAsync(CacheKey.ForEntityDataHashSet(leaderboardKey));
     }
 
     public async Task DeleteAsync(RedisValue leaderboardKey)
     {
-        Guard.AgainstInvalidLeaderboardKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
 
         RedisKey[] keys =
         [
@@ -382,34 +384,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         return leaderboard;
     }
-
-    private static (SortedSetEntry[] sortedSetEntries, HashEntry[] hashSetEntries, SortedSetEntry[] uniqueScoreEntries)
-        PrepareEntitiesForLeaderboardAddOperation(IReadOnlyList<TEntity> entities)
-    {
-        const double initialScore = 0;
-        
-        var sortedSetEntries = new SortedSetEntry[entities.Count];
-        var hashSetEntries = new HashEntry[entities.Count];
-
-        var uniqueScoreEntries = new SortedSetEntry[]
-        {
-            new(initialScore, initialScore)
-        };
-
-        for (var i = 0; i < entities.Count; i++)
-        {
-            var entity = entities[i];
-            
-            sortedSetEntries[i] = new SortedSetEntry(entity.Key, initialScore);
-            
-            var serializedData = new RedisValue(JsonSerializer.Serialize(entity));
-
-            hashSetEntries[i] = new HashEntry(entity.Key, serializedData);
-        }
-        
-        return (sortedSetEntries, hashSetEntries, uniqueScoreEntries);
-    }
-
+    
     private static async Task TryExecuteTransactionAsync(
         ITransaction transaction,
         string errorMessage = "Failed to execute transaction!")
@@ -417,9 +392,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var commited = await transaction.ExecuteAsync();
 
         if (!commited)
-        {
             throw new TransactionException(errorMessage);
-        }
     }
     
     private static double NormalizeScore(double score) 

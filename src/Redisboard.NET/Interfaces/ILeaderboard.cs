@@ -11,19 +11,18 @@ public interface ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity
 {
     /// <summary>
-    /// Adds all the specified entities keys to the leaderboard as new entities with a score of 0.
-    /// If a specified entity is already a member of the leaderboard.
+    /// Asynchronously adds the specified entity to the leaderboard with score of 0
     /// </summary>
     /// <param name="leaderboardKey">Unique identifier for the leaderboard</param>
-    /// <param name="entities">The entity/entities to add to the leaderboard.</param>
+    /// <param name="entity">The entity to add to the leaderboard.</param>
     /// <param name="fireAndForget">
     /// If set to <c>true</c>, the operation will be executed without waiting for a response from Redis.
     /// This can improve performance but provides no guarantee that the operation was successful.
     /// </param>
     Task AddEntitiesAsync(
         RedisValue leaderboardKey,
-        TEntity[] entities,
-        bool fireAndForget = default);
+        TEntity entity,
+        bool fireAndForget = false);
 
     /// <summary>
     /// Asynchronously updates the score of an entity in the leaderboard.
