@@ -23,7 +23,7 @@ public class GetEntityAndNeighboursBenchmarks
         
         _benchmarkPlayer = Player.New();
 
-        await _leaderboard.AddEntitiesAsync(Constants.LeaderboardKey, [_benchmarkPlayer]);
+        await _leaderboard.AddEntitiesAsync(Constants.LeaderboardKey, _benchmarkPlayer);
     }
     
     [Benchmark(Baseline = true)]

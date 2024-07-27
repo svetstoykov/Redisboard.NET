@@ -25,7 +25,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/", async (Player[] player, ILeaderboard<Player> leaderboardManager)
+app.MapPost("/", async (Player player, ILeaderboard<Player> leaderboardManager)
     => await leaderboardManager.AddEntitiesAsync(1, player));
 
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
