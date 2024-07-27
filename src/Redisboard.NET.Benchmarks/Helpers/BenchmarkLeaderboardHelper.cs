@@ -12,7 +12,7 @@ internal static class BenchmarkLeaderboardHelper
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
         var db = connection.GetDatabase(Constants.BenchmarkDbInstance);
 
-        var leaderboard = new Leaderboard<Player>(db);
+        var leaderboard = new Leaderboard(db);
 
         if (await leaderboard.GetSizeAsync(Constants.LeaderboardKey) == default)
         {

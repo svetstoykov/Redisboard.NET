@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using Redisboard.NET.Benchmarks.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Benchmarks;
@@ -10,7 +11,7 @@ namespace Redisboard.NET.Benchmarks;
 [MinColumn, MaxColumn, MeanColumn, MedianColumn]
 public class GetEntityAndNeighboursBenchmarks
 {
-    private Leaderboard<Player> _leaderboard;
+    private ILeaderboard _leaderboard;
     private Player _benchmarkPlayer;
 
     [GlobalSetup]
@@ -19,11 +20,11 @@ public class GetEntityAndNeighboursBenchmarks
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
         var db = connection.GetDatabase(Constants.BenchmarkDbInstance);
 
-        _leaderboard = new Leaderboard<Player>(db);
+        _leaderboard = new Leaderboard(db);
         
         _benchmarkPlayer = Player.New();
-
-        await _leaderboard.AddEntitiesAsync(Constants.LeaderboardKey, _benchmarkPlayer);
+        
+        await _leaderboard.AddEntityAsync(Constants.LeaderboardKey, _benchmarkPlayer);
     }
     
     [Benchmark(Baseline = true)]

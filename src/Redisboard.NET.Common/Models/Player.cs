@@ -1,4 +1,5 @@
-﻿using Redisboard.NET.Interfaces;
+﻿using System.Text.Json;
+using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Common.Models;
@@ -10,14 +11,7 @@ public class Player : ILeaderboardEntity
     public long Rank { get; set; }
 
     public double Score { get; set; }
-
-    public string Username { get; set; }
-
-    public string FirstName { get; set; }
-    
-    public string LastName { get; set; }
-    
-    public DateTime EntryDate { get; set; }
+    public RedisValue Metadata { get; set; }
 
     public static Player New()
     {
@@ -26,11 +20,25 @@ public class Player : ILeaderboardEntity
         return new Player
         {
             Key = Guid.NewGuid().ToString(),
-            EntryDate = DateTime.Now,
             Score = random.Next(),
-            Username = $"user_{random.Next()}",
-            FirstName = $"first_{random.Next()}",
-            LastName = $"last_{random.Next()}"
+            Metadata = JsonSerializer.Serialize(new PlayerData()
+            {
+                EntryDate = DateTime.Now,
+                Username = $"user_{random.Next()}",
+                FirstName = $"first_{random.Next()}",
+                LastName = $"last_{random.Next()}"
+            })
         };
     }
+}
+
+public class PlayerData
+{
+    public string Username { get; set; }
+
+    public string FirstName { get; set; }
+
+    public string LastName { get; set; }
+
+    public DateTime EntryDate { get; set; }
 }

@@ -5,16 +5,15 @@ namespace Redisboard.NET.Helpers;
 
 internal static class Guard
 {
-    public static void AgainstInvalidLeaderboardEntities<TEntity>(TEntity entities)
-        where TEntity : ILeaderboardEntity
+    public static void AgainstInvalidLeaderboardEntities(ILeaderboardEntity entity)
     {
-        if (entities == null)
-            throw new ArgumentNullException(nameof(entities), "The leaderboard entity cannot be null.");
+        if (entity == null )
+            throw new ArgumentNullException(nameof(entity), "The leaderboard entity cannot be null.");
     }
 
     public static void AgainstInvalidIdentityKey(RedisValue identityKey)
     {
-        if (identityKey.IsNull || !identityKey.HasValue)
+        if (identityKey.IsNull || !identityKey.HasValue || identityKey == default)
             throw new ArgumentNullException(nameof(identityKey), "Entity key cannot be null or empty.");
 
         if (identityKey.IsInteger)

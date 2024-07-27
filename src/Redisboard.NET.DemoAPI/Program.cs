@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddLeaderboard<Player>(cfg =>
+builder.Services.AddLeaderboard(cfg =>
 {
     cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
@@ -25,11 +25,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/", async (Player player, ILeaderboard<Player> leaderboardManager)
-    => await leaderboardManager.AddEntitiesAsync(1, player));
+app.MapPost("/", async (Player player, ILeaderboard leaderboardManager)
+    => await leaderboardManager.AddEntityAsync(1, player));
 
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
-        ILeaderboard<Player> leaderboard,
+        ILeaderboard leaderboard,
         string leaderboardId,
         string id,
         int offset = 10,
@@ -37,7 +37,7 @@ app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
     => await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType));
 
 app.MapGet("/leaderboards/{leaderboardId}/scores", async (
-        ILeaderboard<Player> leaderboardManager,
+        ILeaderboard leaderboardManager,
         string leaderboardId,
         double minScore,
         double maxScore,

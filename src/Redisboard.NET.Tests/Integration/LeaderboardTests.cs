@@ -29,12 +29,14 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
             new Player { Key = "John", Score = 100 },
             new Player { Key = "Sam", Score = 50 },
         };
-        
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
 
+        _random.Shuffle(entities);
+        
         foreach (var entity in entities)
         {
-            await leaderboard.UpdateEntityScoreAsync()
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
 
         var result = await leaderboard.GetEntityAndNeighboursAsync(
@@ -73,9 +75,14 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         // randomize array
         _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
-
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+        
         var result = await leaderboard.GetEntityAndNeighboursAsync(
             LeaderboardKey, "player2", offset: 10, RankingType.DenseRank);
 
@@ -115,9 +122,14 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         // randomize array
         _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
-
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+        
         var result = await leaderboard.GetEntityAndNeighboursAsync(
             LeaderboardKey, "player2", offset: 10, RankingType.StandardCompetition);
 
@@ -158,8 +170,13 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
 
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+        
         var result = await leaderboard.GetEntityAndNeighboursAsync(
             LeaderboardKey, "player2", offset: 10, RankingType.ModifiedCompetition);
 
@@ -201,7 +218,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntitiesByScoreRangeAsync(
             LeaderboardKey, minScore, maxScore);
@@ -233,7 +255,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntitiesByScoreRangeAsync(
             LeaderboardKey, minScore, maxScore);
@@ -260,7 +287,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntityRankAsync(LeaderboardKey, entityKey);
 
@@ -287,7 +319,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntityRankAsync(
             LeaderboardKey, entityKey, RankingType.DenseRank);
@@ -315,7 +352,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntityRankAsync(
             LeaderboardKey, entityKey, RankingType.StandardCompetition);
@@ -343,7 +385,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         // randomize array
         _random.Shuffle(entities);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard.GetEntityRankAsync(
             LeaderboardKey, entityKey, RankingType.ModifiedCompetition);
@@ -369,9 +416,14 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         // randomize array
         _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
-
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+        
         await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entityKey, newScore);
 
         var result = await leaderboard.GetEntityScoreAsync(LeaderboardKey, entityKey);
@@ -420,7 +472,12 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         var playerIndexToSearchFor = random.Next(offset + 1, playersCount - offset);
         var playerKey = entities[playerIndexToSearchFor].Key;
 
-        await leaderboard.AddEntitiesAsync(LeaderboardKey, entities);
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
 
         var result = await leaderboard
             .GetEntityAndNeighboursAsync(LeaderboardKey, playerKey, offset, rankingType);

@@ -14,19 +14,17 @@ public static class LeaderboardServiceCollectionExtensions
     /// <summary>
     /// Register the leaderboard services in the service collection.
     /// </summary>
-    /// <typeparam name="TEntity">The type of the leaderboard entity.</typeparam>
     /// <param name="services">The service collection to which the services are added.</param>
     /// <param name="optionsAction">An optional action to configure the Redis connection options, not required if <see cref="IConnectionMultiplexer"/> is already registered.</param>
     /// <returns>The updated service collection.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when the optionsAction is null and IConnectionMultiplexer is not already registered.
     /// </exception>
-    public static IServiceCollection AddLeaderboard<TEntity>(
+    public static IServiceCollection AddLeaderboard(
         this IServiceCollection services, 
         Action<ConfigurationOptions> optionsAction = default)
-        where TEntity : ILeaderboardEntity
     {
-        services.AddScoped<ILeaderboard<TEntity>, Leaderboard<TEntity>>();
+        services.AddScoped<ILeaderboard, Leaderboard>();
 
         if (services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
         {
