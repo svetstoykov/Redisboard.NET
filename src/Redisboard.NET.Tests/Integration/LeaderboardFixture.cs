@@ -16,13 +16,13 @@ public class LeaderboardFixture : IDisposable
     {
         RedisConnection = ConnectionMultiplexer.Connect("localhost:6379");
         RedisDatabase = RedisConnection.GetDatabase(TestDbInstance);
-        Instance = new Leaderboard<Player>(RedisDatabase);
+        Instance = new Leaderboard(RedisDatabase);
         LeaderboardKey = DateTime.UtcNow.Ticks.ToString();
     }
 
     public string LeaderboardKey { get; init; }
 
-    public Leaderboard<Player> Instance { get; init; }
+    public Leaderboard Instance { get; init; }
 
     public void Dispose()
     {

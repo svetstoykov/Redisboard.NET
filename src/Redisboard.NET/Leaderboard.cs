@@ -159,7 +159,7 @@ public class Leaderboard : ILeaderboard
             leaderboardKey, startIndex!.Value, pageSize, rankingType);
     }
 
-    public async Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task<RedisValue> GetEntityDataAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Transactions;
 using Moq;
 using Redisboard.NET.Common.Models;
@@ -22,7 +23,7 @@ public class LeaderboardTests
     {
         var entity = Player.New();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.AddEntityAsync(default, entity));
@@ -33,7 +34,7 @@ public class LeaderboardTests
     {
         Player entity = null;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.AddEntityAsync(LeaderboardKey, entity));
@@ -56,7 +57,7 @@ public class LeaderboardTests
             .Returns(transactionMock.Object)
             .Verifiable();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<TransactionException>(
             async () => await leaderboard.AddEntityAsync(LeaderboardKey, entity));
@@ -80,7 +81,7 @@ public class LeaderboardTests
             .Returns(transactionMock.Object)
             .Verifiable();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await leaderboard.AddEntityAsync(
             LeaderboardKey, entity);
@@ -117,7 +118,7 @@ public class LeaderboardTests
     {
         var entity = Guid.NewGuid().ToString();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityAndNeighboursAsync(default, entity));
@@ -128,7 +129,7 @@ public class LeaderboardTests
     {
         var entity = string.Empty;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityAndNeighboursAsync(LeaderboardKey, entity));
@@ -140,7 +141,7 @@ public class LeaderboardTests
         var entity = Guid.NewGuid().ToString();
         const int invalidOffset = -100;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             async () => await leaderboard.GetEntityAndNeighboursAsync(LeaderboardKey, entity, invalidOffset));
@@ -151,7 +152,7 @@ public class LeaderboardTests
     {
         var leaderboardKey = default(RedisValue);
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntitiesByScoreRangeAsync(leaderboardKey, 0, 100));
@@ -160,7 +161,7 @@ public class LeaderboardTests
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_WithInvalidMinScore_ThrowsArgumentException()
     {
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, -100, 100));
@@ -169,7 +170,7 @@ public class LeaderboardTests
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_WithInvalidMaxScore_ThrowsArgumentException()
     {
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 0, -100));
@@ -178,55 +179,56 @@ public class LeaderboardTests
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_WithInvalidScoreRange_ThrowsInvalidOperationException()
     {
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 90, 20));
     }
 
-    // [Fact]
-    // public async Task GetEntityDataAsync_WithValidEntityKey_ReturnsEntityData()
-    // {
-    //     var entityKey = Guid.NewGuid().ToString();
-    //     var entity = Player.New();
-    //
-    //     _mockRedis.Setup(db => db.HashGetAsync(
-    //             CacheKey.ForEntityDataHashSet(LeaderboardKey),
-    //             entityKey,
-    //             CommandFlags.None))
-    //         .ReturnsAsync(JsonSerializer.Serialize(entity))
-    //         .Verifiable();
-    //
-    //     var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
-    //
-    //     var result = await leaderboard.GetEntityDataAsync(LeaderboardKey, entityKey);
-    //     
-    //     Assert.NotNull(result);
-    //     Assert.Equal(entity.Username, result.Username);
-    //
-    //     _mockRedis.Verify();
-    // }
-    //
-    // [Fact]
-    // public async Task GetEntityDataAsync_WithInvalidEntityKey_ReturnsNull()
-    // {
-    //     const string entityKey = "invalidKey";
-    //
-    //     _mockRedis.Setup(db => db.HashGetAsync(
-    //             CacheKey.ForEntityDataHashSet(LeaderboardKey),
-    //             entityKey,
-    //             CommandFlags.None))
-    //         .ReturnsAsync(RedisValue.Null)
-    //         .Verifiable();
-    //
-    //     var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
-    //
-    //     var result = await leaderboard.GetEntityDataAsync(LeaderboardKey, entityKey);
-    //
-    //     Assert.Null(result);
-    //
-    //     _mockRedis.Verify();
-    // }
+    [Fact]
+    public async Task GetEntityDataAsync_WithValidEntityKey_ReturnsEntityData()
+    {
+        var entityKey = Guid.NewGuid().ToString();
+        var entity = Player.New();
+        var metadata = JsonSerializer.Serialize(entity.Metadata);
+    
+        _mockRedis.Setup(db => db.HashGetAsync(
+                CacheKey.ForEntityDataHashSet(LeaderboardKey),
+                entityKey,
+                CommandFlags.None))
+            .ReturnsAsync(metadata)
+            .Verifiable();
+    
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+    
+        var result = await leaderboard.GetEntityDataAsync(LeaderboardKey, entityKey);
+        
+        Assert.True(result.HasValue);
+        Assert.Equal(metadata, result);
+    
+        _mockRedis.Verify();
+    }
+    
+    [Fact]
+    public async Task GetEntityDataAsync_WithNonExistingEntityKey_ReturnsNull()
+    {
+        const string entityKey = "invalidKey";
+    
+        _mockRedis.Setup(db => db.HashGetAsync(
+                CacheKey.ForEntityDataHashSet(LeaderboardKey),
+                entityKey,
+                CommandFlags.None))
+            .ReturnsAsync(RedisValue.Null)
+            .Verifiable();
+    
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+    
+        var result = await leaderboard.GetEntityDataAsync(LeaderboardKey, entityKey);
+    
+        Assert.True(!result.HasValue);
+        
+        _mockRedis.Verify();
+    }
 
     [Fact]
     public void GetEntityDataAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
@@ -234,10 +236,10 @@ public class LeaderboardTests
         var leaderboardKey = default(RedisValue);
         var entityKey = Guid.NewGuid().ToString();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await leaderboard.GetEntityMetadataAsync(leaderboardKey, entityKey));
+            async () => await leaderboard.GetEntityDataAsync(leaderboardKey, entityKey));
     }
 
     [Fact]
@@ -246,10 +248,10 @@ public class LeaderboardTests
         var leaderboardKey = Guid.NewGuid().ToString();
         const string entityKey = default;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await leaderboard.GetEntityMetadataAsync(leaderboardKey, entityKey));
+            async () => await leaderboard.GetEntityDataAsync(leaderboardKey, entityKey));
     }
 
     [Fact]
@@ -265,7 +267,7 @@ public class LeaderboardTests
             .ReturnsAsync(expectedScore)
             .Verifiable();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         var result = await leaderboard.GetEntityScoreAsync(LeaderboardKey, entityKey);
 
@@ -287,7 +289,7 @@ public class LeaderboardTests
             .ReturnsAsync(expectedScore)
             .Verifiable();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         var result = await leaderboard.GetEntityScoreAsync(LeaderboardKey, entityKey);
 
@@ -302,7 +304,7 @@ public class LeaderboardTests
         RedisValue leaderboardKey = default;
         var entityKey = Guid.NewGuid().ToString();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityScoreAsync(leaderboardKey, entityKey));
@@ -313,7 +315,7 @@ public class LeaderboardTests
     {
         string entityKey = null;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityScoreAsync(LeaderboardKey, entityKey));
@@ -325,7 +327,7 @@ public class LeaderboardTests
         var entityKey = Guid.NewGuid().ToString();
         const bool transactionCommitedStatus = true;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
         
         var transactionMock = new Mock<ITransaction>();
 
@@ -366,7 +368,7 @@ public class LeaderboardTests
         RedisValue leaderboardKey = default;
         var entityKey = Guid.NewGuid().ToString();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.DeleteEntityAsync(leaderboardKey, entityKey));
@@ -377,7 +379,7 @@ public class LeaderboardTests
     {
         string entityKey = null;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.DeleteEntityAsync(LeaderboardKey, entityKey));
@@ -388,7 +390,7 @@ public class LeaderboardTests
     {
         var expectedSize = _random.Next();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         _mockRedis.Setup(db => db.HashLengthAsync(
                 CacheKey.ForEntityDataHashSet(LeaderboardKey),
@@ -408,7 +410,7 @@ public class LeaderboardTests
     {
         const string leaderboardKey = default;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetSizeAsync(leaderboardKey));
@@ -428,7 +430,7 @@ public class LeaderboardTests
             .ReturnsAsync(3)
             .Verifiable();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await leaderboard.DeleteAsync(LeaderboardKey);
 
@@ -445,7 +447,7 @@ public class LeaderboardTests
         const string leaderboardKey = default;
         var entityKey = Guid.NewGuid().ToString();
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityRankAsync(leaderboardKey, entityKey)); 
@@ -456,7 +458,7 @@ public class LeaderboardTests
     {
         const string entityKey = default;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
         
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityRankAsync(LeaderboardKey, entityKey));
@@ -467,7 +469,7 @@ public class LeaderboardTests
     {
         const string leaderboardKey = default;
 
-        var leaderboard = new Leaderboard<Player>(_mockRedis.Object);
+        var leaderboard = new Leaderboard(_mockRedis.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.DeleteAsync(leaderboardKey));
