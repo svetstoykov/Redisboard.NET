@@ -2,7 +2,6 @@ using BenchmarkDotNet.Attributes;
 using Redisboard.NET.Benchmarks.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
-using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Benchmarks;
@@ -11,20 +10,20 @@ namespace Redisboard.NET.Benchmarks;
 [MinColumn, MaxColumn, MeanColumn, MedianColumn]
 public class GetEntityAndNeighboursBenchmarks
 {
-    private ILeaderboard _leaderboard;
+    private Leaderboard _leaderboard;
     private Player _benchmarkPlayer;
 
     [GlobalSetup]
     public async Task GlobalSetup()
     {
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
-        var db = connection.GetDatabase(Constants.BenchmarkDbInstance);
+        var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
         _leaderboard = new Leaderboard(db);
         
         _benchmarkPlayer = Player.New();
         
-        await _leaderboard.AddEntityAsync(Constants.LeaderboardKey, _benchmarkPlayer);
+        await _leaderboard.AddEntityAsync(Settings.LeaderboardKey(), _benchmarkPlayer);
     }
     
     [Benchmark(Baseline = true)]
@@ -32,7 +31,7 @@ public class GetEntityAndNeighboursBenchmarks
     public async Task GetEntityAndNeighbours_DefaultRanking_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
-            Constants.LeaderboardKey, 
+            Settings.LeaderboardKey(), 
             _benchmarkPlayer.Key, 
             offset,
             RankingType.Default);
@@ -43,7 +42,7 @@ public class GetEntityAndNeighboursBenchmarks
     public async Task GetEntityAndNeighbours_DenseRanking_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
-            Constants.LeaderboardKey, 
+            Settings.LeaderboardKey(), 
             _benchmarkPlayer.Key, 
             offset,
             RankingType.DenseRank);
@@ -54,7 +53,7 @@ public class GetEntityAndNeighboursBenchmarks
     public async Task GetEntityAndNeighbours_Competition_500K_Players(int offset)
     {
         await _leaderboard.GetEntityAndNeighboursAsync(
-            Constants.LeaderboardKey, 
+            Settings.LeaderboardKey(), 
             _benchmarkPlayer.Key, 
             offset,
             RankingType.StandardCompetition);

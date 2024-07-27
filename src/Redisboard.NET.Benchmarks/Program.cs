@@ -1,5 +1,4 @@
-﻿
-using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Running;
 using Redisboard.NET.Benchmarks;
 using Redisboard.NET.Benchmarks.Helpers;
 

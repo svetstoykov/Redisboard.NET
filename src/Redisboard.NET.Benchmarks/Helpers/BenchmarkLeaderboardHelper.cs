@@ -1,5 +1,4 @@
 using Redisboard.NET.Common.Helpers;
-using Redisboard.NET.Common.Models;
 using Redisboard.NET.Helpers;
 using StackExchange.Redis;
 
@@ -10,24 +9,24 @@ internal static class BenchmarkLeaderboardHelper
     public static async Task InitializeBenchmarksLeaderboardAsync()
     {
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
-        var db = connection.GetDatabase(Constants.BenchmarkDbInstance);
+        var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
         var leaderboard = new Leaderboard(db);
 
-        if (await leaderboard.GetSizeAsync(Constants.LeaderboardKey) == default)
+        if (await leaderboard.GetSizeAsync(Settings.LeaderboardKey()) == default)
         {
             await LeaderboardSeeder.SeedAsync(
-                leaderboard, Constants.LeaderboardKey, Constants.LeaderboardPlayerCount);
+                leaderboard, Settings.LeaderboardKey(), Settings.LeaderboardPlayerCount);
         }
     }
     
     public static async Task CleanUpBenchmarksLeaderboardAsync()
     {
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
-        var db = connection.GetDatabase(Constants.BenchmarkDbInstance);
+        var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
-        db.KeyDelete(CacheKey.ForEntityDataHashSet(Constants.LeaderboardKey));
-        db.KeyDelete(CacheKey.ForUniqueScoreSortedSet(Constants.LeaderboardKey));
-        db.KeyDelete(CacheKey.ForLeaderboardSortedSet(Constants.LeaderboardKey));
+        db.KeyDelete(CacheKey.ForEntityDataHashSet(Settings.LeaderboardKey()));
+        db.KeyDelete(CacheKey.ForUniqueScoreSortedSet(Settings.LeaderboardKey()));
+        db.KeyDelete(CacheKey.ForLeaderboardSortedSet(Settings.LeaderboardKey()));
     }
 }
