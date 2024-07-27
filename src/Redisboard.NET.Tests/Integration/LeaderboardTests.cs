@@ -334,6 +334,42 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
     }
     
     [Fact]
+    public async Task GetEntityRankAsync_WithValidDataDenseRank_MultipleUpdates_ReturnsRank()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const string entityKey = "player5";
+        const int expectedRank = 4;
+
+        var entities = new[]
+        {
+            new Player { Key = "player1", Score = 250 },
+            new Player { Key = "player2", Score = 200 },
+            new Player { Key = "player3", Score = 100 },
+            new Player { Key = "player4", Score = 100 },
+            new Player { Key = "player5", Score = 50 }
+        };
+
+        // randomize array
+        _random.Shuffle(entities);
+
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+        
+        //additional score update
+        await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entityKey, 40);
+
+        var result = await leaderboard.GetEntityRankAsync(
+            LeaderboardKey, entityKey, RankingType.DenseRank);
+
+        result.Should().NotBeNull();
+        result!.Value.Should().Be(expectedRank);
+    }
+    
+    [Fact]
     public async Task GetEntityRankAsync_WithValidDataStandardCompetition_ReturnsRank()
     {
         var leaderboard = _leaderboardFixture.Instance;

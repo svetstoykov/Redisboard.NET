@@ -41,6 +41,10 @@
       <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </EmbeddedResource>
+      <None Remove="Scripts\update_entity_score.lua" />
+      <EmbeddedResource Include="Scripts\update_entity_score.lua">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </EmbeddedResource>
     </ItemGroup>
 
 </Project>

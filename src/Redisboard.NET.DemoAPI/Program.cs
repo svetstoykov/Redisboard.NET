@@ -1,4 +1,6 @@
+using Redisboard.NET.Common.Helpers;
 using Redisboard.NET.Common.Models;
+using Redisboard.NET.DemoAPI.Models;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Extensions;
 using Redisboard.NET.Interfaces;
@@ -25,24 +27,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/", async (Player player, ILeaderboard leaderboardManager)
-    => await leaderboardManager.AddEntityAsync(1, player));
+app.MapPost("/seed", async (SeedLeaderboardRequest player, ILeaderboard leaderboard)
+    => await LeaderboardSeeder.SeedAsync(leaderboard, player.LeaderboardKey, player.NumberOfEntities));
 
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
-        ILeaderboard leaderboard,
-        string leaderboardId,
-        string id,
-        int offset = 10,
-        RankingType rankingType = RankingType.Default)
-    => await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType));
+        ILeaderboard leaderboard, string leaderboardId, string id, int offset = 10, RankingType rankingType = RankingType.Default)
+    => (await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType))
+    .Select(PlayerResponse.MapFromLeaderboardEntity));
 
 app.MapGet("/leaderboards/{leaderboardId}/scores", async (
-        ILeaderboard leaderboardManager,
-        string leaderboardId,
-        double minScore,
-        double maxScore,
-        RankingType rankingType = RankingType.Default)
-    => await leaderboardManager.GetEntitiesByScoreRangeAsync(
-        leaderboardId, minScore, maxScore, rankingType));
+        ILeaderboard leaderboardManager, string leaderboardId, double minScore, double maxScore, RankingType rankingType = RankingType.Default)
+    => (await leaderboardManager.GetEntitiesByScoreRangeAsync(
+        leaderboardId, minScore, maxScore, rankingType))
+    .Select(PlayerResponse.MapFromLeaderboardEntity));
 
 app.Run();

@@ -53,7 +53,7 @@ public class Leaderboard : ILeaderboard
         transaction.HashSetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entity.Key,
-            JsonSerializer.Serialize(entity.Metadata),
+            entity.Metadata,
             flags: commandFlags);
 
         await TryExecuteTransactionAsync(
@@ -76,22 +76,23 @@ public class Leaderboard : ILeaderboard
             ? CommandFlags.FireAndForget
             : CommandFlags.None;
 
-        var transaction = _redis.CreateTransaction();
+        var script = LeaderboardScript.ForUpdateEntityScore()
+            .ExecutableScript;
 
-        transaction.SortedSetAddAsync(
+        var keys = new[]
+        {
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+        };
+
+        var values = new[]
+        {
             entityKey,
-            invertedScore,
-            commandFlags);
+            invertedScore
+        };
 
-        transaction.SortedSetAddAsync(
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            invertedScore,
-            invertedScore,
-            commandFlags);
-
-        await TryExecuteTransactionAsync(
-            transaction, "Failed to update entity score in leaderboard!");
+        await _redis.ScriptEvaluateAsync(
+            script, keys, values, commandFlags);
     }
 
     public async Task<ILeaderboardEntity[]> GetEntityAndNeighboursAsync(
@@ -163,13 +164,13 @@ public class Leaderboard : ILeaderboard
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
-        
+
         var hashEntry = await _redis.HashGetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey),
             entityKey);
-        
-        if(hashEntry == default) return default;
-        
+
+        if (hashEntry == default) return default;
+
         return hashEntry;
     }
 
@@ -309,8 +310,7 @@ public class Leaderboard : ILeaderboard
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDenseRanking(
         RedisValue leaderboardKey, long startIndex, int pageSize)
     {
-        var script = LuaScript
-            .Prepare(LeaderboardScript.ForEntityKeysByRangeWithDenseRank())
+        var script = LeaderboardScript.ForEntityKeysByRangeWithDenseRank()
             .ExecutableScript;
 
         RedisKey[] keys =
@@ -327,8 +327,7 @@ public class Leaderboard : ILeaderboard
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithCompetitionRanking(
         RedisValue leaderboardKey, long startIndex, int pageSize, int rankingType)
     {
-        var script = LuaScript
-            .Prepare(LeaderboardScript.ForEntityKeysByRangeWithCompetitionRank())
+        var script = LeaderboardScript.ForEntityKeysByRangeWithCompetitionRank()
             .ExecutableScript;
 
         RedisKey[] keys =
@@ -373,7 +372,7 @@ public class Leaderboard : ILeaderboard
             entity.Rank = keysWithLeaderboardMetrics[entity.Key].Rank;
             entity.Score = NormalizeScore(keysWithLeaderboardMetrics[entity.Key].Score);
             entity.Metadata = entityData[i];
-            
+
             leaderboard[i] = entity;
         }
 
