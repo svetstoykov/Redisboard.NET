@@ -13,6 +13,7 @@ for i = 1, #zrangeResult, 2 do
     local memberIdentifier = zrangeResult[i]
     local memberScore = zrangeResult[i + 1]
 
+    -- We get the rank via the "memberScore" since the "memberScore" is the unique dense rank dentifier
     local memberUniqueRank = redis.call('zrank', uniqueScoresSortedSetCacheKey, tostring(memberScore))
 
     table.insert(result, { memberIdentifier, memberUniqueRank + 1, memberScore })

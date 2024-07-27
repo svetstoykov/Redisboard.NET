@@ -46,7 +46,7 @@ public class Leaderboard : ILeaderboard
 
         transaction.SortedSetAddAsync(
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            entity.Key,
+            initialScore,
             initialScore,
             commandFlags);
 
@@ -86,7 +86,7 @@ public class Leaderboard : ILeaderboard
 
         transaction.SortedSetAddAsync(
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            entityKey,
+            invertedScore,
             invertedScore,
             commandFlags);
 
@@ -159,7 +159,7 @@ public class Leaderboard : ILeaderboard
             leaderboardKey, startIndex!.Value, pageSize, rankingType);
     }
 
-    public async Task<RedisValue> GetEntityDataAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task<RedisValue> GetEntityMetadataDataAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -367,13 +367,13 @@ public class Leaderboard : ILeaderboard
 
         for (var i = 0; i < entityData.Length; i++)
         {
-            var data = entityData[i];
+            ILeaderboardEntity entity = new LeaderboardEntryWrapper();
 
-            var entity = JsonSerializer.Deserialize<ILeaderboardEntity>(data);
-
+            entity.Key = hashEntryKeys[i];
             entity.Rank = keysWithLeaderboardMetrics[entity.Key].Rank;
             entity.Score = NormalizeScore(keysWithLeaderboardMetrics[entity.Key].Score);
-
+            entity.Metadata = entityData[i];
+            
             leaderboard[i] = entity;
         }
 

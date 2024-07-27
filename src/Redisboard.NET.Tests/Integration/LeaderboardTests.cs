@@ -330,7 +330,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
             LeaderboardKey, entityKey, RankingType.DenseRank);
 
         result.Should().NotBeNull();
-        result.Value.Should().Be(expectedRank);
+        result!.Value.Should().Be(expectedRank);
     }
     
     [Fact]
