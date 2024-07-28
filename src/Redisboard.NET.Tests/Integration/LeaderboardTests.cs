@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
@@ -34,7 +35,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -78,7 +79,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -125,7 +126,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -172,7 +173,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -220,7 +221,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -257,7 +258,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -289,7 +290,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -321,7 +322,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -354,7 +355,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -390,7 +391,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -423,7 +424,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -455,7 +456,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }
@@ -466,6 +467,37 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         result.Should().NotBeNull();
         result.Value.Should().Be(newScore);
+    }
+
+    [Fact]
+    public async Task UpdateEntityMedataAsync_WithValidData_ReturnsUpdatedMetadata()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        var entityKey = Guid.NewGuid().ToString();
+        var metadata = new PlayerData()
+        {
+            EntryDate = DateTime.UtcNow,
+            FirstName = "John",
+            LastName = "Doe",
+            Username = "nobody"
+        };
+        
+        await leaderboard.AddEntityAsync(LeaderboardKey, entityKey);
+
+        var metadataBeforeUpdate = await leaderboard.GetEntityMetadataAsync(LeaderboardKey, entityKey);
+
+        metadataBeforeUpdate.Should().Be(default);
+        
+        await leaderboard.UpdateEntityMetadataAsync(LeaderboardKey, entityKey, JsonSerializer.Serialize(metadata));
+        
+        var metadataAfterUpdate = await leaderboard.GetEntityMetadataAsync(LeaderboardKey, entityKey);
+        
+        var deserializedMetadata = JsonSerializer.Deserialize<PlayerData>(metadataAfterUpdate);
+        
+        deserializedMetadata.FirstName.Should().Be(metadata.FirstName);
+        deserializedMetadata.LastName.Should().Be(metadata.LastName);
+        deserializedMetadata.Username.Should().Be(metadata.Username);
+        deserializedMetadata.EntryDate.Should().Be(metadata.EntryDate);
     }
     
     [Fact]
@@ -510,7 +542,7 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
 
         foreach (var entity in entities)
         {
-            await leaderboard.AddEntityAsync(LeaderboardKey, entity);
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
 
             await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
         }

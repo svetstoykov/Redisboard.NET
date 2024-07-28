@@ -5,12 +5,6 @@ namespace Redisboard.NET.Helpers;
 
 internal static class Guard
 {
-    public static void AgainstInvalidLeaderboardEntities(ILeaderboardEntity entity)
-    {
-        if (entity == null )
-            throw new ArgumentNullException(nameof(entity), "The leaderboard entity cannot be null.");
-    }
-
     public static void AgainstInvalidIdentityKey(RedisValue identityKey)
     {
         if (identityKey.IsNull || !identityKey.HasValue || identityKey == default)
@@ -50,5 +44,11 @@ internal static class Guard
     {
         if (newScore < 0)
             throw new ArgumentOutOfRangeException(nameof(newScore), "Score cannot be negative!");
+    }
+
+    public static void AgainstInvalidMetadata(RedisValue metadata)
+    {
+        if (metadata.IsNull ||!metadata.HasValue || metadata == default)
+            throw new ArgumentNullException(nameof(metadata), "Metadata cannot be null or empty.");
     }
 }

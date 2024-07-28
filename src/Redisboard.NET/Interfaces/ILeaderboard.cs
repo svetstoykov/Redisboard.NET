@@ -12,14 +12,16 @@ public interface ILeaderboard
     /// Asynchronously adds the specified entity to the leaderboard with score of 0
     /// </summary>
     /// <param name="leaderboardKey">Unique identifier for the leaderboard</param>
-    /// <param name="entity">The entity to add to the leaderboard.</param>
+    /// <param name="entityKey">Unique identifier for the entity</param>
+    /// <param name="metadata">Optional metadata to associate with the entity.</param>
     /// <param name="fireAndForget">
     /// If set to <c>true</c>, the operation will be executed without waiting for a response from Redis.
     /// This can improve performance but provides no guarantee that the operation was successful.
     /// </param>
     Task AddEntityAsync(
         RedisValue leaderboardKey,
-        ILeaderboardEntity entity,
+        RedisValue entityKey,
+        RedisValue metadata = default,
         bool fireAndForget = false);
 
     /// <summary>
@@ -42,6 +44,25 @@ public interface ILeaderboard
         double newScore,
         bool fireAndForget = false);
 
+    /// <summary>
+    /// Asynchronously updates the metadata of an entity in the leaderboard.
+    /// </summary>
+    /// <param name="leaderboardKey">The key identifying the leaderboard.</param>
+    /// <param name="entityKey">The unique identifier of the entity whose score is being updated.</param>
+    /// <param name="metadata">The new metadata to be assigned to the entity.</param>
+    /// <param name="fireAndForget">
+    /// If set to <c>true</c>, the operation will be executed without waiting for a response from Redis.
+    /// This can improve performance but provides no guarantee that the operation was successful.
+    /// </param>
+    /// <exception cref="Exception">
+    /// Thrown when the leaderboardKey, entityKey, or metadata is invalid.
+    /// </exception>
+    Task UpdateEntityMetadataAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        RedisValue metadata,
+        bool fireAndForget = false);
+    
     /// <summary>
     /// Retrieves a leaderboard entity by its unique identifier, including its neighbors with a defined offset.
     /// </summary>

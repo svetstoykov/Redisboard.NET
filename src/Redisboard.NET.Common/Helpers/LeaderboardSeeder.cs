@@ -21,7 +21,7 @@ public static class LeaderboardSeeder
             {
                 var generated = Player.New();
 
-                await leaderboard.AddEntityAsync(leaderboardId, generated, fireAndForget: true);
+                await leaderboard.AddEntityAsync(leaderboardId, generated.Key, generated.Metadata, fireAndForget: true);
                 
                 await leaderboard.UpdateEntityScoreAsync(leaderboardId, generated.Key, generated.Score, fireAndForget: true);
             }

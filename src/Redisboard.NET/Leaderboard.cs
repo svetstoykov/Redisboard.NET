@@ -24,11 +24,12 @@ public class Leaderboard : ILeaderboard
 
     public async Task AddEntityAsync(
         RedisValue leaderboardKey,
-        ILeaderboardEntity entity,
+        RedisValue entityKey,
+        RedisValue metadata = default,
         bool fireAndForget = false)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
-        Guard.AgainstInvalidLeaderboardEntities(entity);
+        Guard.AgainstInvalidIdentityKey(entityKey);
 
         var commandFlags = fireAndForget
             ? CommandFlags.FireAndForget
@@ -40,7 +41,7 @@ public class Leaderboard : ILeaderboard
 
         transaction.SortedSetAddAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            entity.Key,
+            entityKey,
             initialScore,
             commandFlags);
 
@@ -50,11 +51,14 @@ public class Leaderboard : ILeaderboard
             initialScore,
             commandFlags);
 
-        transaction.HashSetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardKey),
-            entity.Key,
-            entity.Metadata,
-            flags: commandFlags);
+        if (metadata != default)
+        {
+            transaction.HashSetAsync(
+                CacheKey.ForEntityDataHashSet(leaderboardKey),
+                entityKey,
+                metadata,
+                flags: commandFlags);
+        }
 
         await TryExecuteTransactionAsync(
             transaction, "Failed to add entities to leaderboard!");
@@ -93,6 +97,27 @@ public class Leaderboard : ILeaderboard
 
         await _redis.ScriptEvaluateAsync(
             script, keys, values, commandFlags);
+    }
+
+    public async Task UpdateEntityMetadataAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        RedisValue metadata,
+        bool fireAndForget = false)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
+        Guard.AgainstInvalidMetadata(metadata);
+        
+        var commandFlags = fireAndForget
+            ? CommandFlags.FireAndForget
+            : CommandFlags.None;
+
+        await _redis.HashSetAsync(
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            entityKey,
+            metadata,
+            flags: commandFlags);
     }
 
     public async Task<ILeaderboardEntity[]> GetEntityAndNeighboursAsync(
@@ -160,7 +185,7 @@ public class Leaderboard : ILeaderboard
             leaderboardKey, startIndex!.Value, pageSize, rankingType);
     }
 
-    public async Task<RedisValue> GetEntityMetadataDataAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
