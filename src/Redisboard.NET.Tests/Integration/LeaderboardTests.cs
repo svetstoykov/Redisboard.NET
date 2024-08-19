@@ -58,7 +58,203 @@ public class LeaderboardTests : IClassFixture<LeaderboardFixture>, IDisposable
         result.First(p => p.Key == "Sam")
             .Rank.Should().Be(expectedRanks[3]);
     }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_Middle_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+        const int expectedOffset = offset * 2 + 1;
 
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "John", offset: offset, RankingType.DenseRank);
+
+        Assert.Equal(expectedOffset, result.Length);
+    }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDenseRanking_Middle_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+        const int expectedOffset = offset * 2 + 1;
+
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "John", offset: offset);
+
+        Assert.Equal(expectedOffset, result.Length);
+    }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataCompetitionRanking_Middle_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+        const int expectedOffset = offset * 2 + 1;
+
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "John", offset: 2, RankingType.StandardCompetition);
+
+        Assert.Equal(expectedOffset, result.Length);
+    }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDefaultRanking_FirstPlace_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "Mike", offset: 2, RankingType.DenseRank);
+
+        Assert.Equal(offset + 1, result.Length);
+    }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataDenseRanking_FirstPlace_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "Mike", offset: 2);
+
+        Assert.Equal(offset + 1, result.Length);
+    }
+    
+    [Fact]
+    public async Task GetEntityAndNeighboursAsync_WithValidDataCompetitionRanking_FirstPlace_CorrectOffset_ReturnsLeaderboard()
+    {
+        var leaderboard = _leaderboardFixture.Instance;
+        const int offset = 2;
+
+        var entities = new[]
+        {
+            new Player { Key = "Mike", Score = 200 },
+            new Player { Key = "Alex", Score = 100 },
+            new Player { Key = "John", Score = 100 },
+            new Player { Key = "Sam", Score = 55 },
+            new Player { Key = "Jim", Score = 50 },
+            new Player { Key = "Dodo", Score = 40 },
+            new Player { Key = "Frodo", Score = 30 },
+        };
+
+        _random.Shuffle(entities);
+        
+        foreach (var entity in entities)
+        {
+            await leaderboard.AddEntityAsync(LeaderboardKey, entity.Key);
+
+            await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entity.Key, entity.Score);
+        }
+
+        var result = await leaderboard.GetEntityAndNeighboursAsync(
+            LeaderboardKey, "Mike", offset: 2, RankingType.StandardCompetition);
+
+        Assert.Equal(offset + 1, result.Length);
+    }
+    
+    
     [Fact]
     public async Task GetEntityAndNeighboursAsync_WithValidDataDenseRanking_ReturnsLeaderboard()
     {
