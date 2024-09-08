@@ -146,4 +146,15 @@ public interface ILeaderboard
     /// <param name="leaderboardKey"></param>
     /// <returns></returns>
     Task DeleteAsync(RedisValue leaderboardKey);
+    
+    /// <summary>
+    /// Retrieves the metadata associated with a specific entity in the leaderboard.
+    /// </summary>
+    /// <param name="leaderboardKey">The unique identifier for the leaderboard.</param>
+    /// <param name="entityKey">The unique identifier for the entity within the leaderboard.</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation. The task result contains the metadata
+    /// of the entity as a RedisValue. If the entity is not found, the result will be RedisValue.Null.
+    /// </returns>
+    Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey);
 }
