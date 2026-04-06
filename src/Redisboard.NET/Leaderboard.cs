@@ -39,7 +39,7 @@ public class Leaderboard : ILeaderboard
 
     /// <inheritdoc />
     public async Task AddEntityAsync(
-        RedisValue leaderboardKey, RedisValue entityKey, RedisValue metadata = default, bool fireAndForget = false)
+        RedisValue leaderboardKey, RedisValue entityKey, RedisValue metadata = default, bool fireAndForget = false, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -59,12 +59,12 @@ public class Leaderboard : ILeaderboard
         if (metadata != default)
             transaction.HashSetAsync(CacheKey.ForEntityDataHashSet(leaderboardKey), entityKey, metadata, flags: commandFlags);
 
-        await TryExecuteTransactionAsync(transaction, "Failed to add entities to leaderboard!");
+        await TryExecuteTransactionAsync(transaction, cancellationToken, "Failed to add entities to leaderboard!");
     }
 
     /// <inheritdoc />
     public async Task UpdateEntityScoreAsync(
-        RedisValue leaderboardKey, RedisValue entityKey, double newScore, bool fireAndForget = false)
+        RedisValue leaderboardKey, RedisValue entityKey, double newScore, bool fireAndForget = false, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -91,7 +91,7 @@ public class Leaderboard : ILeaderboard
 
     /// <inheritdoc />
     public async Task UpdateEntityMetadataAsync(
-        RedisValue leaderboardKey, RedisValue entityKey, RedisValue metadata, bool fireAndForget = false)
+        RedisValue leaderboardKey, RedisValue entityKey, RedisValue metadata, bool fireAndForget = false, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -106,7 +106,7 @@ public class Leaderboard : ILeaderboard
 
     /// <inheritdoc />
     public async Task<ILeaderboardEntity[]> GetEntityAndNeighboursAsync(
-        RedisValue leaderboardKey, RedisValue entityKey, int offset = 10, RankingType rankingType = RankingType.Default)
+        RedisValue leaderboardKey, RedisValue entityKey, int offset = 10, RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -122,7 +122,7 @@ public class Leaderboard : ILeaderboard
             ? offset * 2 + 1
             : (int)playerIndex.Value + offset + 1;
 
-        return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType);
+        return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -130,7 +130,8 @@ public class Leaderboard : ILeaderboard
         RedisValue leaderboardKey,
         double minScore,
         double maxScore,
-        RankingType rankingType = RankingType.Default)
+        RankingType rankingType = RankingType.Default,
+        CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidScoreRangeLimit(minScore);
@@ -149,7 +150,7 @@ public class Leaderboard : ILeaderboard
 
         var pageSize = entitiesInRange.Length;
 
-        return await GetLeaderboardAsync(leaderboardKey, startIndex!.Value, pageSize, rankingType);
+        return await GetLeaderboardAsync(leaderboardKey, startIndex!.Value, pageSize, rankingType, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -168,11 +169,11 @@ public class Leaderboard : ILeaderboard
         var startIndex = startRank - 1;
         var pageSize = (int)(endRank - startRank) + 1;
 
-        return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType);
+        return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -181,7 +182,7 @@ public class Leaderboard : ILeaderboard
     }
 
     /// <inheritdoc />
-    public async Task<double?> GetEntityScoreAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task<double?> GetEntityScoreAsync(RedisValue leaderboardKey, RedisValue entityKey, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -194,7 +195,7 @@ public class Leaderboard : ILeaderboard
     }
 
     /// <inheritdoc />
-    public async Task<long?> GetEntityRankAsync(RedisValue leaderboardKey, RedisValue entityKey, RankingType rankingType = RankingType.Default)
+    public async Task<long?> GetEntityRankAsync(RedisValue leaderboardKey, RedisValue entityKey, RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -207,13 +208,13 @@ public class Leaderboard : ILeaderboard
 
         if (rankingType == RankingType.Default) return playerIndex.Value + 1;
 
-        var entity = await GetLeaderboardAsync(leaderboardKey, playerIndex.Value, singleUserPageSize, rankingType);
+        var entity = await GetLeaderboardAsync(leaderboardKey, playerIndex.Value, singleUserPageSize, rankingType, cancellationToken);
 
         return entity.First().Rank;
     }
 
     /// <inheritdoc />
-    public async Task DeleteEntityAsync(RedisValue leaderboardKey, RedisValue entityKey)
+    public async Task DeleteEntityAsync(RedisValue leaderboardKey, RedisValue entityKey, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
@@ -226,11 +227,11 @@ public class Leaderboard : ILeaderboard
 
         transaction.SortedSetRemoveAsync(CacheKey.ForUniqueScoreSortedSet(leaderboardKey), entityKey);
 
-        await TryExecuteTransactionAsync(transaction, "Failed to delete entity from leaderboard!");
+        await TryExecuteTransactionAsync(transaction, cancellationToken, "Failed to delete entity from leaderboard!");
     }
 
     /// <inheritdoc />
-    public async Task<long> GetSizeAsync(RedisValue leaderboardKey)
+    public async Task<long> GetSizeAsync(RedisValue leaderboardKey, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
 
@@ -238,7 +239,7 @@ public class Leaderboard : ILeaderboard
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(RedisValue leaderboardKey)
+    public async Task DeleteAsync(RedisValue leaderboardKey, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
 
@@ -253,8 +254,10 @@ public class Leaderboard : ILeaderboard
     }
 
     private async Task<ILeaderboardEntity[]> GetLeaderboardAsync(
-        RedisValue leaderboardKey, long startIndex, int pageSize, RankingType rankingType)
+        RedisValue leaderboardKey, long startIndex, int pageSize, RankingType rankingType, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var entityKeysWithRanking = rankingType switch
         {
             RankingType.Default
@@ -268,7 +271,7 @@ public class Leaderboard : ILeaderboard
                 $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(type => $"{type} ({(int)type})"))}.")
         };
 
-        return await GetEntitiesDataAsync(leaderboardKey, entityKeysWithRanking);
+        return await GetEntitiesDataAsync(leaderboardKey, entityKeysWithRanking, cancellationToken);
     }
 
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDefaultRanking(
@@ -329,8 +332,11 @@ public class Leaderboard : ILeaderboard
 
     private async Task<ILeaderboardEntity[]> GetEntitiesDataAsync(
         RedisValue leaderboardKey,
-        Dictionary<RedisValue, LeaderboardStats> keysWithLeaderboardMetrics)
+        Dictionary<RedisValue, LeaderboardStats> keysWithLeaderboardMetrics,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var hashEntryKeys = keysWithLeaderboardMetrics
             .Select(p => p.Key)
             .ToArray();
@@ -356,8 +362,11 @@ public class Leaderboard : ILeaderboard
 
     private static async Task TryExecuteTransactionAsync(
         ITransaction transaction,
+        CancellationToken cancellationToken = default,
         string errorMessage = "Failed to execute transaction!")
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var commited = await transaction.ExecuteAsync();
 
         if (!commited) throw new TransactionException(errorMessage);
