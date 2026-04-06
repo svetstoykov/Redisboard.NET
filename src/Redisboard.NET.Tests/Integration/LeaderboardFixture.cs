@@ -1,5 +1,6 @@
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Helpers;
+using Redisboard.NET.Serialization;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Tests.Integration;
@@ -16,7 +17,7 @@ public class LeaderboardFixture : IDisposable
     {
         RedisConnection = ConnectionMultiplexer.Connect("localhost:6379");
         RedisDatabase = RedisConnection.GetDatabase(TestDbInstance);
-        Instance = new Leaderboard<Player>(RedisDatabase);
+        Instance = new Leaderboard<Player>(RedisDatabase, new MemoryPackLeaderboardSerializer());
         LeaderboardKey = DateTime.UtcNow.Ticks.ToString();
     }
 

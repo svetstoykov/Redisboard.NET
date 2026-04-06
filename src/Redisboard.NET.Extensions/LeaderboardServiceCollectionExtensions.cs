@@ -14,7 +14,7 @@ public static class LeaderboardServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="ILeaderboard{TEntity}"/> → <see cref="Leaderboard{TEntity}"/> in the service collection
-    /// using the default <see cref="SystemTextJsonLeaderboardSerializer"/>.
+    /// using the default <see cref="MemoryPackLeaderboardSerializer"/>.
     /// </summary>
     /// <typeparam name="TEntity">
     /// The domain type stored in the leaderboard.
@@ -27,6 +27,10 @@ public static class LeaderboardServiceCollectionExtensions
     /// An action to configure the Redis <see cref="ConfigurationOptions"/>.
     /// Not required if <see cref="IConnectionMultiplexer"/> is already registered in the container.
     /// </param>
+    /// <param name="serializer">
+    /// Optional custom <see cref="ILeaderboardSerializer"/> implementation.
+    /// When <c>null</c>, the default <see cref="MemoryPackLeaderboardSerializer"/> is used.
+    /// </param>
     /// <returns>The updated service collection.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="optionsAction"/> is <c>null</c> and <see cref="IConnectionMultiplexer"/>
@@ -34,10 +38,20 @@ public static class LeaderboardServiceCollectionExtensions
     /// </exception>
     public static IServiceCollection AddLeaderboard<TEntity>(
         this IServiceCollection services,
-        Action<ConfigurationOptions> optionsAction = default)
+        Action<ConfigurationOptions> optionsAction = default,
+        ILeaderboardSerializer serializer = default)
         where TEntity : ILeaderboardEntity, new()
     {
-        services.AddScoped<ILeaderboard<TEntity>, Leaderboard<TEntity>>();
+        serializer ??= new MemoryPackLeaderboardSerializer();
+
+        services.AddSingleton(serializer);
+
+        services.AddScoped<ILeaderboard<TEntity>>(sp =>
+        {
+            var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+            var leaderboardSerializer = sp.GetRequiredService<ILeaderboardSerializer>();
+            return new Leaderboard<TEntity>(multiplexer, serializer: leaderboardSerializer);
+        });
 
         return RegisterRedis(services, optionsAction);
     }

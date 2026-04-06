@@ -1,3 +1,4 @@
+using MemoryPack;
 using Redisboard.NET.Attributes;
 using Redisboard.NET.Interfaces;
 
@@ -6,7 +7,8 @@ namespace Redisboard.NET.Common.Models;
 /// <summary>
 /// Example domain entity used by integration tests, benchmarks, and the DemoAPI.
 /// </summary>
-public class Player : ILeaderboardEntity
+[MemoryPackable]
+public partial class Player : ILeaderboardEntity
 {
     /// <summary>Unique identifier for this player.</summary>
     [LeaderboardKey]

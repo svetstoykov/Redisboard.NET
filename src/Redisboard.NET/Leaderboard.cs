@@ -4,8 +4,9 @@ using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.Models;
 using ILeaderboardSerializer = Redisboard.NET.Serialization.ILeaderboardSerializer;
-using SystemTextJsonLeaderboardSerializer = Redisboard.NET.Serialization.SystemTextJsonLeaderboardSerializer;
+using MemoryPackLeaderboardSerializer = Redisboard.NET.Serialization.MemoryPackLeaderboardSerializer;
 using StackExchange.Redis;
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
 namespace Redisboard.NET;
 
@@ -22,12 +23,12 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="redis">The Redis database to use.</param>
     /// <param name="serializer">
     /// Serializer used for entity metadata persistence.
-    /// Defaults to <see cref="SystemTextJsonLeaderboardSerializer"/>.
+    /// Defaults to <see cref="MemoryPackLeaderboardSerializer"/>.
     /// </param>
-    public Leaderboard(IDatabase redis, ILeaderboardSerializer? serializer = null)
+    public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer)
     {
         _redis = redis;
-        _serializer = serializer ?? new SystemTextJsonLeaderboardSerializer();
+        _serializer = serializer;
     }
 
     /// <summary>
@@ -37,12 +38,12 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="databaseIndex">The Redis database index to use (0 by default).</param>
     /// <param name="serializer">
     /// Serializer used for entity metadata persistence.
-    /// Defaults to <see cref="SystemTextJsonLeaderboardSerializer"/>.
+    /// Defaults to <see cref="MemoryPackLeaderboardSerializer"/>.
     /// </param>
     public Leaderboard(
         IConnectionMultiplexer connectionMultiplexer,
-        int databaseIndex = 0,
-        ILeaderboardSerializer? serializer = null)
+        ILeaderboardSerializer serializer,
+        int databaseIndex = 0)
         : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer)
     {
     }
@@ -104,7 +105,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
         };
 
-        var args = new RedisValue[] { entityKey, invertedScore };
+        var args = new[] { entityKey, invertedScore };
 
         await _redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
     }
@@ -385,7 +386,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
             if (rawJson.HasValue && !rawJson.IsNullOrEmpty)
             {
-                entity = _serializer.Deserialize<TEntity>(rawJson.ToString());
+                entity = _serializer.Deserialize<TEntity>((byte[])rawJson!);
             }
             else
             {

@@ -4,7 +4,7 @@ namespace Redisboard.NET.Attributes;
 /// Marks the property on an <see cref="Interfaces.ILeaderboardEntity"/> implementation
 /// that uniquely identifies the entity within a leaderboard.
 /// The property type must be assignable to <see cref="string"/>, <see cref="Guid"/>,
-/// or <see cref="StackExchange.Redis.RedisValue"/>.
+/// <see cref="int"/>, <see cref="long"/>, or <see cref="StackExchange.Redis.RedisValue"/>.
 /// </summary>
 /// <remarks>
 /// Exactly one property per type must carry this attribute.

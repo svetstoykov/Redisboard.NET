@@ -1,6 +1,7 @@
 using Redisboard.NET.Common.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Helpers;
+using Redisboard.NET.Serialization;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Benchmarks.Helpers;
@@ -12,7 +13,7 @@ internal static class BenchmarkLeaderboardHelper
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
         var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
-        var leaderboard = new Leaderboard<Player>(db);
+        var leaderboard = new Leaderboard<Player>(db, new MemoryPackLeaderboardSerializer());
 
         if (await leaderboard.GetSizeAsync(Settings.LeaderboardKey()) == default)
         {

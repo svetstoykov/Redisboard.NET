@@ -76,7 +76,7 @@ internal static class EntityTypeAccessor<TEntity>
 
     /// <summary>
     /// Compiles: (TEntity e) => e.Key converted to RedisValue
-    /// Handles string, Guid, and RedisValue property types with zero boxing.
+    /// Handles string, Guid, int, long, and RedisValue property types with zero boxing.
     /// </summary>
     private static Func<TEntity, RedisValue> BuildKeyGetter(PropertyInfo prop)
     {
@@ -100,6 +100,16 @@ internal static class EntityTypeAccessor<TEntity>
             // (RedisValue)e.Key.ToString()
             var toString = Expression.Call(access, typeof(Guid).GetMethod(nameof(Guid.ToString), Type.EmptyTypes)!);
             body = Expression.Convert(toString, typeof(RedisValue));
+        }
+        else if (t == typeof(int))
+        {
+            // (RedisValue)(int)e.Key — implicit int->RedisValue conversion
+            body = Expression.Convert(access, typeof(RedisValue));
+        }
+        else if (t == typeof(long))
+        {
+            // (RedisValue)(long)e.Key — implicit long->RedisValue conversion
+            body = Expression.Convert(access, typeof(RedisValue));
         }
         else
         {
@@ -138,6 +148,16 @@ internal static class EntityTypeAccessor<TEntity>
             var asString = Expression.Call(valueParam, toStringMethod);
             var parseMethod = typeof(Guid).GetMethod(nameof(Guid.Parse), new[] { typeof(string) })!;
             converted = Expression.Call(parseMethod, asString);
+        }
+        else if (t == typeof(int))
+        {
+            // (int)v — explicit RedisValue->int conversion
+            converted = Expression.Convert(valueParam, typeof(int));
+        }
+        else if (t == typeof(long))
+        {
+            // (long)v — explicit RedisValue->long conversion
+            converted = Expression.Convert(valueParam, typeof(long));
         }
         else
         {
@@ -210,10 +230,11 @@ internal static class EntityTypeAccessor<TEntity>
     private static void ValidateKeyPropertyType(PropertyInfo prop)
     {
         var t = prop.PropertyType;
-        if (t != typeof(string) && t != typeof(Guid) && t != typeof(RedisValue))
+        if (t != typeof(string) && t != typeof(Guid) && t != typeof(RedisValue)
+            && t != typeof(int) && t != typeof(long))
             throw new LeaderboardConfigurationException(
                 $"Property '{prop.DeclaringType!.FullName}.{prop.Name}' is decorated with [{nameof(LeaderboardKeyAttribute)}] " +
-                $"but its type '{t.Name}' is not supported. Supported types: string, Guid, RedisValue.");
+                $"but its type '{t.Name}' is not supported. Supported types: string, Guid, int, long, RedisValue.");
     }
 
     private static void ValidateScorePropertyType(PropertyInfo prop)

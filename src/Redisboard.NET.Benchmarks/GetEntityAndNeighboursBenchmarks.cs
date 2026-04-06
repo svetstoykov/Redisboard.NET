@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using Redisboard.NET.Benchmarks.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Serialization;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Benchmarks;
@@ -19,7 +20,7 @@ public class GetEntityAndNeighboursBenchmarks
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
         var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
-        _leaderboard = new Leaderboard<Player>(db);
+        _leaderboard = new Leaderboard<Player>(db, new MemoryPackLeaderboardSerializer());
 
         _benchmarkPlayer = Player.New();
 
