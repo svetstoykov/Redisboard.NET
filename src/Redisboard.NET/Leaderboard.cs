@@ -118,9 +118,9 @@ public class Leaderboard : ILeaderboard
 
         var startIndex = Math.Max(playerIndex.Value - offset, 0);
 
-        var pageSize = playerIndex.Value > offset
-            ? offset * 2
-            : (int)playerIndex.Value + offset;
+        var pageSize = playerIndex.Value >= offset
+            ? offset * 2 + 1
+            : (int)playerIndex.Value + offset + 1;
 
         return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType);
     }
@@ -147,7 +147,7 @@ public class Leaderboard : ILeaderboard
 
         var startIndex = await _redis.SortedSetRankAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey), entitiesInRange.First());
 
-        var pageSize = entitiesInRange.Length - 1;
+        var pageSize = entitiesInRange.Length;
 
         return await GetLeaderboardAsync(leaderboardKey, startIndex!.Value, pageSize, rankingType);
     }
@@ -166,7 +166,7 @@ public class Leaderboard : ILeaderboard
         cancellationToken.ThrowIfCancellationRequested();
 
         var startIndex = startRank - 1;
-        var pageSize = (int)(endRank - startRank);
+        var pageSize = (int)(endRank - startRank) + 1;
 
         return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType);
     }
@@ -274,7 +274,7 @@ public class Leaderboard : ILeaderboard
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDefaultRanking(
         RedisValue leaderboardKey, long startIndex, int pageSize)
     {
-        var endIndex = startIndex + pageSize;
+        var endIndex = startIndex + pageSize - 1;
 
         var entityKeysWithRanking = new Dictionary<RedisValue, LeaderboardStats>();
 
