@@ -15,6 +15,8 @@ internal static class BenchmarkLeaderboardHelper
 
         var leaderboard = new Leaderboard<Player>(db, new MemoryPackLeaderboardSerializer());
 
+        var d = await leaderboard.GetSizeAsync(Settings.LeaderboardKey());
+
         if (await leaderboard.GetSizeAsync(Settings.LeaderboardKey()) == default)
         {
             await LeaderboardSeeder.SeedAsync(

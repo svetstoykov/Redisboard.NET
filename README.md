@@ -225,7 +225,7 @@ Ranks: [1, 2, 4, 4, 5, 6]
 
 ## Benchmarks 🚀
 
-These benchmarks have been run (on M3 Macbook Air) over a leaderboard with **500,000 entries** of type:
+These benchmarks were run over a leaderboard with **500,000 entries** of type:
 ```cs
 public class Player : ILeaderboardEntity
 {
@@ -239,9 +239,19 @@ public class Player : ILeaderboardEntity
 }
 ```
 
-We are benchmarking the most common method - getting a entity and their neighbors with an relevant offset*
+We benchmarked the most common read path: getting an entity and its neighbors with a relevant `offset`.*
 
-*\*The offset says how many neighbours above and below the targeted entity we should take*
+*\*`offset` controls how many neighbors above and below the target entity are returned.*
+
+### Latest run at a glance
+
+Environment: **BenchmarkDotNet 0.15.8**, **.NET 10.0.5**, **Apple M3 (8 cores)**, **macOS Tahoe 26.3.1**.
+
+What these benchmarks show:
+- Querying a 500K leaderboard stays **sub-millisecond** across all tested ranking modes and offsets.
+- **Default ranking** is the fastest baseline in every scenario.
+- **Dense** and **Competition** ranking add ranking semantics with a moderate overhead, while still staying very fast.
+- Memory usage scales predictably with `offset` (more neighbors returned = more allocation).
 
 <table>
   <thead>
@@ -249,123 +259,73 @@ We are benchmarking the most common method - getting a entity and their neighbor
       <th>Method</th>
       <th>Offset</th>
       <th>Mean</th>
-      <th>Error</th>
-      <th>StdDev</th>
-      <th>Median</th>
-      <th>Min</th>
       <th>Max</th>
-      <th>Ratio</th>
       <th>Allocated</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
+      <td>Default Ranking</td>
       <td>10</td>
-      <td>0.329 ms</td>
-      <td>0.010 ms</td>
-      <td>0.032 ms</td>
-      <td>0.328 ms</td>
-      <td>0.257 ms</td>
-      <td>0.414 ms</td>
-      <td>1.00</td>
-      <td>31.49 KB</td>
-    </tr>
-    <tr >
-      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
-      <td>10</td>
-      <td>0.341 ms</td>
-      <td>0.009 ms</td>
-      <td>0.027 ms</td>
-      <td>0.332 ms</td>
-      <td>0.280 ms</td>
-      <td>0.409 ms</td>
-      <td>1.05</td>
-      <td>43 KB</td>
+      <td><strong>449.6 us</strong></td>
+      <td>509.9 us</td>
+      <td>26.1 KB</td>
     </tr>
     <tr>
-      <td>GetEntityAndNeighbours_Competition_500K</td>
+      <td>Dense Ranking</td>
       <td>10</td>
-      <td>0.371 ms</td>
-      <td>0.007 ms</td>
-      <td>0.017 ms</td>
-      <td>0.368 ms</td>
-      <td>0.318 ms</td>
-      <td>0.405 ms</td>
-      <td>1.13</td>
-      <td>46.97 KB</td>
+      <td>489.1 us</td>
+      <td>537.9 us</td>
+      <td>27.57 KB</td>
     </tr>
-    <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
+    <tr>
+      <td>Competition Ranking</td>
+      <td>10</td>
+      <td>515.0 us</td>
+      <td>665.5 us</td>
+      <td>27.51 KB</td>
+    </tr>
+    <tr style="background-color:rgba(51, 170, 51, .14)">
+      <td>Default Ranking</td>
       <td>20</td>
-      <td>0.410 ms</td>
-      <td>0.017 ms</td>
-      <td>0.050 ms</td>
-      <td>0.411 ms</td>
-      <td>0.305 ms</td>
-      <td>0.511 ms</td>
-      <td>1.00</td>
-      <td>59.84 KB</td>
+      <td><strong>473.6 us</strong></td>
+      <td>570.9 us</td>
+      <td>50.25 KB</td>
     </tr>
-    <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
+    <tr style="background-color:rgba(51, 170, 51, .14)">
+      <td>Dense Ranking</td>
       <td>20</td>
-      <td>0.509 ms</td>
-      <td>0.010 ms</td>
-      <td>0.018 ms</td>
-      <td>0.515 ms</td>
-      <td>0.456 ms</td>
-      <td>0.540 ms</td>
-      <td>1.40</td>
-      <td>75.99 KB</td>
+      <td>518.7 us</td>
+      <td>556.1 us</td>
+      <td>50.99 KB</td>
     </tr>
-    <tr style="background-color:rgba(51, 170, 51, .4)">
-      <td>GetEntityAndNeighbours_Competition_500K</td>
+    <tr style="background-color:rgba(51, 170, 51, .14)">
+      <td>Competition Ranking</td>
       <td>20</td>
-      <td>0.544 ms</td>
-      <td>0.008 ms</td>
-      <td>0.007 ms</td>
-      <td>0.543 ms</td>
-      <td>0.531 ms</td>
-      <td>0.558 ms</td>
-      <td>1.50</td>
-      <td>80.09 KB</td>
+      <td>526.8 us</td>
+      <td>567.5 us</td>
+      <td>50.86 KB</td>
     </tr>
-    <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_DefaultRanking_500K</td>
+    <tr style="background-color:rgba(90, 200, 240, .14)">
+      <td>Default Ranking</td>
       <td>50</td>
-      <td>0.503 ms</td>
-      <td>0.006 ms</td>
-      <td>0.005 ms</td>
-      <td>0.505 ms</td>
-      <td>0.494 ms</td>
-      <td>0.514 ms</td>
-      <td>1.00</td>
-      <td>142.16 KB</td>
+      <td><strong>522.7 us</strong></td>
+      <td>566.4 us</td>
+      <td>118.48 KB</td>
     </tr>
-    <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_DenseRanking_500K</td>
+    <tr style="background-color:rgba(90, 200, 240, .14)">
+      <td>Dense Ranking</td>
       <td>50</td>
-      <td>0.620 ms</td>
-      <td>0.010 ms</td>
-      <td>0.013 ms</td>
-      <td>0.618 ms</td>
-      <td>0.593 ms</td>
-      <td>0.645 ms</td>
-      <td>1.24</td>
-      <td>171.78 KB</td>
+      <td>664.5 us</td>
+      <td>706.3 us</td>
+      <td>120.88 KB</td>
     </tr>
-    <tr style="background-color:rgba(90, 200, 240, .4">
-      <td>GetEntityAndNeighbours_Competition_500K</td>
+    <tr style="background-color:rgba(90, 200, 240, .14)">
+      <td>Competition Ranking</td>
       <td>50</td>
-      <td>0.701 ms</td>
-      <td>0.010 ms</td>
-      <td>0.009 ms</td>
-      <td>0.703 ms</td>
-      <td>0.676 ms</td>
-      <td>0.713 ms</td>
-      <td>1.40</td>
-      <td>176.03 KB</td>
+      <td>773.8 us</td>
+      <td>899.0 us</td>
+      <td>121.55 KB</td>
     </tr>
   </tbody>
 </table>
