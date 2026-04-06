@@ -284,8 +284,6 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         await _redis.KeyDeleteAsync(keys);
     }
 
-    // ---- Private helpers ---------------------------------------------------
-
     private async Task<TEntity[]> GetLeaderboardAsync(
         RedisValue leaderboardKey, long startIndex, int pageSize, RankingType rankingType,
         CancellationToken cancellationToken = default)

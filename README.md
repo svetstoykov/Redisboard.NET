@@ -7,7 +7,7 @@ Redisboard.NET is a optimized .NET library designed to handle leaderboards effic
 ## 🚧 UNDER CONSTRUCTION (not available on NuGet) 🚧
 
 **TODO:**  
-✅ Add integration tests   
+✅ Add integration tests  
 ✅ Add benchmarks  
 ❌ Distribute to NuGet 
 
@@ -25,38 +25,111 @@ With your Redis server humming along, it's time to install the [Redisboard.NET](
 dotnet add package Redisboard.NET
 ```
 
-In your project define your leaderboard entity. In should implement the `ILeaderboardEntity`
+Define your leaderboard entity. It must:
+- Implement `ILeaderboardEntity`
+- Be `partial` and annotated with `[MemoryPackable]`
+- Decorate exactly one property with `[LeaderboardKey]`
+- Decorate exactly one property with `[LeaderboardScore]`
 
-<!-- snippet: quick-start -->
 ```cs
 // Define a player class implementing ILeaderboardEntity
-public class Player : ILeaderboardEntity
+[MemoryPackable]
+public partial class Player : ILeaderboardEntity
 {
+    [LeaderboardKey]
     public string Id { get; set; }
-    public long Rank {get; set;}
+
+    [LeaderboardScore]
     public double Score { get; set; }
+
+    public long Rank { get; set; }  // Populated automatically on reads
+
+    // Additional properties are stored as metadata
+    public string Username { get; set; }
+    public string AvatarUrl { get; set; }
 }
 ```
 
-Start managing your leaderboard with the help of the `Leaderboard<Player>` class
+Start managing your leaderboard with the `Leaderboard<Player>` class:
 ```cs
 const string leaderboardKey = "your_leaderboard_key"
 
-//initialize a new Leaderboard class by passing down IDatabase or IConnectionMultiplexer
-var leaderboard = new Leaderboard<Player>(redis) 
+// Initialize a Leaderboard by passing IDatabase or IConnectionMultiplexer
+var leaderboard = new Leaderboard<Player>(redis);
 
 var players = new[]
 {
-    new Player { Id = "player1", Score = 100 },
-    new Player { Id = "player2", Score = 150 }
+    new Player { Id = "player1", Score = 100, Username = "Alice" },
+    new Player { Id = "player2", Score = 150, Username = "Bob" }
 };
 
 // Add players to the leaderboard
-await leaderboard.AddEntitiesAsync(leaderboardKey, players);
+await leaderboard.AddEntityAsync(leaderboardKey, players[0]);
+await leaderboard.AddEntityAsync(leaderboardKey, players[1]);
 
 // Retrieve player and neighbors (offset is default 10)
 var result = await leaderboard.GetEntityAndNeighboursAsync(
     leaderboardKey, "player1", RankingType.Default);
+```
+
+## Entity Requirements
+
+### MemoryPack Serialization
+
+The library uses **MemoryPack** by default for high-performance serialization. All entity types must be properly configured:
+
+```cs
+[MemoryPackable]  // Required: enables MemoryPack source generation
+public partial class Player : ILeaderboardEntity
+{
+    [LeaderboardKey]   // Identifies the entity uniquely
+    public string Id { get; set; }
+
+    [LeaderboardScore] // Used for ranking
+    public double Score { get; set; }
+
+    public long Rank { get; set; }  // Auto-populated on reads
+}
+```
+
+**Key requirements:**
+1. **The class must be `partial`** — the source generator emits a companion file
+2. **Every nested type needs `[MemoryPackable]`** — if `Player` has a `Stats` property, `Stats` must also be `[MemoryPackable] partial`
+3. **Parameterless constructor** — MemoryPack needs either a parameterless constructor or a constructor whose parameter names match property names
+4. **Inheritance requires explicit registration** — for polymorphic hierarchies:
+
+```cs
+[MemoryPackable]
+[MemoryPackUnion(0, typeof(HumanPlayer))]
+[MemoryPackUnion(1, typeof(BotPlayer))]
+public abstract partial class Player { }
+
+[MemoryPackable]
+public partial class HumanPlayer : Player { }
+```
+
+### Supported Property Types
+
+| Attribute | Supported Types |
+|-----------|-----------------|
+| `[LeaderboardKey]` | `string`, `Guid`, `int`, `long`, `RedisValue` |
+| `[LeaderboardScore]` | `double`, `float`, `int`, `long` |
+
+### Custom Serializer
+
+If you cannot use MemoryPack, implement `ILeaderboardSerializer` and pass it to the `Leaderboard` constructor:
+
+```cs
+public class SystemTextJsonSerializer : ILeaderboardSerializer
+{
+    public byte[] Serialize<T>(T value)
+        => JsonSerializer.SerializeToUtf8Bytes(value);
+
+    public T Deserialize<T>(byte[] data)
+        => JsonSerializer.Deserialize<T>(data)!;
+}
+
+var leaderboard = new Leaderboard<Player>(redis, new SystemTextJsonSerializer());
 ```
 ### **Dependency Injection** 
 If you wish to use DI should install the [Redisboard.NET.Extensions]() package and register the Leaderboard in your `IServiceCollection`  
@@ -89,7 +162,8 @@ public class MyService
     {
         const string leaderboardKey = "your_leaderboard_key"
 
-        await _leaderboard.AddEntitiesAsync(leaderboardKey, players);
+        foreach (var player in players)
+            await _leaderboard.AddEntityAsync(leaderboardKey, player);
     }
 }
 ```

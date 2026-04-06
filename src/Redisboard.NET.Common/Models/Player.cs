@@ -21,8 +21,6 @@ public partial class Player : ILeaderboardEntity
     /// <inheritdoc />
     public long Rank { get; set; }
 
-    // ---- Domain properties (persisted as metadata by the library) ----------
-
     public string Username { get; set; }
 
     public string FirstName { get; set; }

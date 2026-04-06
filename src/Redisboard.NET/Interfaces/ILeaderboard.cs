@@ -80,8 +80,6 @@ public interface ILeaderboard<TEntity>
         bool fireAndForget = false,
         CancellationToken cancellationToken = default);
 
-    // ---- Read ------------------------------------------------------------------
-
     /// <summary>
     /// Retrieves a specific entity along with the entities surrounding it (above and below in rank).
     /// </summary>
@@ -138,8 +136,6 @@ public interface ILeaderboard<TEntity>
         long endRank,
         RankingType rankingType = RankingType.Default,
         CancellationToken cancellationToken = default);
-
-    // ---- Utility ---------------------------------------------------------------
 
     /// <summary>
     /// Gets the current score of a specific entity.
