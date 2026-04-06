@@ -11,9 +11,7 @@ public class RankRangeTests : LeaderboardTestBase
 {
     public RankRangeTests(LeaderboardFixture fixture) : base(fixture) { }
 
-    // ------------------------------------------------------------------ //
     // Basic behaviour
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByRankRangeAsync_Top3_ReturnsCorrectEntities()
@@ -54,9 +52,7 @@ public class RankRangeTests : LeaderboardTestBase
         result[0].Rank.Should().Be(2);
     }
 
-    // ------------------------------------------------------------------ //
     // Empty leaderboard
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByRankRangeAsync_EmptyLeaderboard_ReturnsEmpty()
@@ -66,9 +62,7 @@ public class RankRangeTests : LeaderboardTestBase
         result.Should().BeEmpty();
     }
 
-    // ------------------------------------------------------------------ //
     // Out-of-bounds ranges — should return only existing entries
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByRankRangeAsync_RangeExceedsSize_ReturnsOnlyExistingEntries()
@@ -90,12 +84,10 @@ public class RankRangeTests : LeaderboardTestBase
         result.Should().BeEmpty();
     }
 
-    // ------------------------------------------------------------------ //
     // All 4 ranking types
     //
     // Dataset: p1=300, p2=300, p3=200, p4=200, p5=100
     // Query ranks 1–5 to verify ranking assignment per type
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByRankRangeAsync_DefaultRanking_SequentialRanks()
@@ -153,9 +145,7 @@ public class RankRangeTests : LeaderboardTestBase
         result.Where(e => e.Score == 100).Should().OnlyContain(e => e.Rank == 5);
     }
 
-    // ------------------------------------------------------------------ //
     // Rank consistency with GetEntityRankAsync
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByRankRangeAsync_RanksMatchGetEntityRankAsync()

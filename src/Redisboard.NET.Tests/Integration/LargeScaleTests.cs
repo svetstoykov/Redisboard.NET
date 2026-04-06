@@ -14,9 +14,7 @@ public class LargeScaleTests : LeaderboardTestBase
 
     public LargeScaleTests(LeaderboardFixture fixture) : base(fixture) { }
 
-    // ------------------------------------------------------------------ //
     // Helpers
-    // ------------------------------------------------------------------ //
 
     private static IEnumerable<(string key, double score)> ThreeGroupPlayers()
     {
@@ -25,9 +23,7 @@ public class LargeScaleTests : LeaderboardTestBase
         for (var i = 0; i < GroupSize; i++) yield return ($"c{i}", 1_000);
     }
 
-    // ------------------------------------------------------------------ //
     // Three-group (3 x 1 000) ranking correctness
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task LargeDataset_DefaultRanking_GroupRangesAreCorrect()
@@ -98,9 +94,7 @@ public class LargeScaleTests : LeaderboardTestBase
             .Should().OnlyContain(e => e.Rank == GroupSize * 3);
     }
 
-    // ------------------------------------------------------------------ //
     // 10 000 unique-score offset arithmetic
-    // ------------------------------------------------------------------ //
 
     [Theory]
     [InlineData(RankingType.Default)]
@@ -125,9 +119,7 @@ public class LargeScaleTests : LeaderboardTestBase
         result.Should().OnlyContain(r => r.Score > 0);
     }
 
-    // ------------------------------------------------------------------ //
     // Randomized page-size correctness
-    // ------------------------------------------------------------------ //
 
     [Theory]
     [InlineData(RankingType.Default)]

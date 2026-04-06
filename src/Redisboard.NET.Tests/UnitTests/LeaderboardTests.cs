@@ -282,26 +282,26 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public void GetEntityDataAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    public async Task GetEntityDataAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
         var leaderboardKey = default(RedisValue);
         var entityKey = Guid.NewGuid().ToString();
 
         var leaderboard = new Leaderboard(_mockRedis.Object);
 
-        Assert.ThrowsAsync<ArgumentNullException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityMetadataAsync(leaderboardKey, entityKey));
     }
 
     [Fact]
-    public void GetEntityDataAsync_WithInvalidEntityKey_ThrowsArgumentNullException()
+    public async Task GetEntityDataAsync_WithInvalidEntityKey_ThrowsArgumentNullException()
     {
         var leaderboardKey = Guid.NewGuid().ToString();
         const string entityKey = default;
 
         var leaderboard = new Leaderboard(_mockRedis.Object);
 
-        Assert.ThrowsAsync<ArgumentNullException>(
+        await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.GetEntityMetadataAsync(leaderboardKey, entityKey));
     }
 

@@ -32,7 +32,6 @@ public class ScoreRangeTests : LeaderboardTestBase
         result.Should().BeEmpty();
     }
 
-    // ------------------------------------------------------------------ //
     // Rank verification per ranking type
     //
     // Dataset: top1=300, top2=300, mid1=200, mid2=200, low1=100
@@ -40,7 +39,6 @@ public class ScoreRangeTests : LeaderboardTestBase
     //
     // Positions (0-based in sorted-set, score desc):
     //   top1/top2 at 0-1, mid1/mid2 at 2-3, low1 at 4
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_AllRankingTypes_CorrectEntitiesReturned()

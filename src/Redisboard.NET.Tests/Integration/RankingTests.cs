@@ -13,9 +13,7 @@ public class RankingTests : LeaderboardTestBase
 {
     public RankingTests(LeaderboardFixture fixture) : base(fixture) { }
 
-    // ------------------------------------------------------------------ //
     // GetEntityAndNeighboursAsync — rank-value assertions
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntityAndNeighboursAsync_DefaultRanking_ReturnsCorrectRanks()
@@ -79,9 +77,7 @@ public class RankingTests : LeaderboardTestBase
         result.First(p => p.Key == "player5").Rank.Should().Be(5);
     }
 
-    // ------------------------------------------------------------------ //
     // GetEntityAndNeighboursAsync — offset count for middle player
-    // ------------------------------------------------------------------ //
 
     [Theory]
     [InlineData(RankingType.Default)]
@@ -101,9 +97,7 @@ public class RankingTests : LeaderboardTestBase
         result.Should().HaveCount(offset * 2 + 1);
     }
 
-    // ------------------------------------------------------------------ //
     // GetEntityAndNeighboursAsync — offset count for first-place player
-    // ------------------------------------------------------------------ //
 
     [Theory]
     [InlineData(RankingType.Default)]
@@ -123,9 +117,7 @@ public class RankingTests : LeaderboardTestBase
         result.Should().HaveCount(offset + 1);
     }
 
-    // ------------------------------------------------------------------ //
     // GetEntityRankAsync — standalone rank queries
-    // ------------------------------------------------------------------ //
 
     [Fact]
     public async Task GetEntityRankAsync_DefaultRanking_ReturnsCorrectRank()

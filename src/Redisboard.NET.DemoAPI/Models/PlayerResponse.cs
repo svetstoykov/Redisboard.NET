@@ -17,6 +17,6 @@ public class PlayerResponse
             Key = player.Key,
             Rank = player.Rank,
             Score = player.Score,
-            Metadata = JsonSerializer.Deserialize<PlayerData>(player.Metadata)
+            Metadata = JsonSerializer.Deserialize<PlayerData>(player.Metadata.ToString())
         };
 }

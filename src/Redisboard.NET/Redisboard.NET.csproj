@@ -5,7 +5,7 @@
         <LangVersion>default</LangVersion>
         <Optimize>true</Optimize>
         <Authors>Svetlozar Stoykov</Authors>
-        <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <ProjectType>Library</ProjectType>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -18,8 +18,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
-        <PackageReference Include="System.Text.Json" Version="8.0.3" />
+        <PackageReference Include="StackExchange.Redis" Version="2.12.14" />
+        <PackageReference Include="System.Text.Json" Version="10.0.5" />
     </ItemGroup>
 
     <ItemGroup>
@@ -28,23 +28,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Scripts\get_player_ids_by_range_competition_rank.lua" />
-      <None Remove="Scripts\get_player_ids_by_range_dense_rank.lua" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
-      <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </EmbeddedResource>
-      <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
-      <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </EmbeddedResource>
-      <None Remove="Scripts\update_entity_score.lua" />
-      <EmbeddedResource Include="Scripts\update_entity_score.lua">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </EmbeddedResource>
+        <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
+        <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
+        <None Remove="Scripts\update_entity_score.lua" />
+        <EmbeddedResource Include="Scripts\update_entity_score.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
     </ItemGroup>
 
 </Project>

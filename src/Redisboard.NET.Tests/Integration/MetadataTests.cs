@@ -31,7 +31,7 @@ public class MetadataTests : LeaderboardTestBase
         var stored = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
 
         stored.Should().NotBe(default);
-        var deserialized = JsonSerializer.Deserialize<PlayerData>(stored!);
+        var deserialized = JsonSerializer.Deserialize<PlayerData>(stored.ToString());
         deserialized!.Username.Should().Be(metadata.Username);
         deserialized.FirstName.Should().Be(metadata.FirstName);
         deserialized.LastName.Should().Be(metadata.LastName);
@@ -69,7 +69,7 @@ public class MetadataTests : LeaderboardTestBase
         await Leaderboard.UpdateEntityMetadataAsync(Key, entityKey, JsonSerializer.Serialize(metadata));
 
         var metadataAfterUpdate = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
-        var deserialized = JsonSerializer.Deserialize<PlayerData>(metadataAfterUpdate);
+        var deserialized = JsonSerializer.Deserialize<PlayerData>(metadataAfterUpdate.ToString());
 
         deserialized!.FirstName.Should().Be(metadata.FirstName);
         deserialized.LastName.Should().Be(metadata.LastName);
