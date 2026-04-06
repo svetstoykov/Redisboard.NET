@@ -153,6 +153,25 @@ public class Leaderboard : ILeaderboard
     }
 
     /// <inheritdoc />
+    public async Task<ILeaderboardEntity[]> GetEntitiesByRankRangeAsync(
+        RedisValue leaderboardKey,
+        long startRank,
+        long endRank,
+        RankingType rankingType = RankingType.Default,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidRankRange(startRank, endRank);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var startIndex = startRank - 1;
+        var pageSize = (int)(endRank - startRank);
+
+        return await GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType);
+    }
+
+    /// <inheritdoc />
     public async Task<RedisValue> GetEntityMetadataAsync(RedisValue leaderboardKey, RedisValue entityKey)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);

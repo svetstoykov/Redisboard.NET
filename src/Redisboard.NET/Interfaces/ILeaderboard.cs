@@ -111,6 +111,24 @@ public interface ILeaderboard
     Task DeleteAsync(RedisValue leaderboardKey);
     
     /// <summary>
+    /// Retrieves a page of leaderboard entries by rank range.
+    /// Ranks are 1-indexed (rank 1 is the top player), consistent with <see cref="GetEntityRankAsync"/>.
+    /// If the requested range exceeds the leaderboard size, only the existing entries are returned.
+    /// </summary>
+    /// <param name="leaderboardKey">Unique identifier for the leaderboard.</param>
+    /// <param name="startRank">The starting rank (inclusive, 1-indexed). Must be >= 1.</param>
+    /// <param name="endRank">The ending rank (inclusive, 1-indexed). Must be >= startRank.</param>
+    /// <param name="rankingType">The ranking type to use for ordering the leaderboard.</param>
+    /// <param name="cancellationToken">A cancellation token to observe.</param>
+    /// <returns>An array of leaderboard entities within the specified rank range.</returns>
+    Task<ILeaderboardEntity[]> GetEntitiesByRankRangeAsync(
+        RedisValue leaderboardKey,
+        long startRank,
+        long endRank,
+        RankingType rankingType = RankingType.Default,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves the metadata associated with a specific entity in the leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">The unique identifier for the leaderboard.</param>

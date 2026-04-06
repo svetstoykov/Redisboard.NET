@@ -46,6 +46,15 @@ internal static class Guard
             throw new ArgumentOutOfRangeException(nameof(newScore), "Score cannot be negative!");
     }
 
+    public static void AgainstInvalidRankRange(long startRank, long endRank)
+    {
+        if (startRank < 1)
+            throw new ArgumentOutOfRangeException(nameof(startRank), "Start rank must be >= 1.");
+
+        if (endRank < startRank)
+            throw new ArgumentOutOfRangeException(nameof(endRank), "End rank must be >= start rank.");
+    }
+
     public static void AgainstInvalidMetadata(RedisValue metadata)
     {
         if (metadata.IsNull ||!metadata.HasValue || metadata == default)

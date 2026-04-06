@@ -525,4 +525,51 @@ public class LeaderboardTests
         await Assert.ThrowsAsync<ArgumentNullException>(
             async () => await leaderboard.DeleteAsync(leaderboardKey));
     }
+
+    [Fact]
+    public async Task GetEntitiesByRankRangeAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    {
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.GetEntitiesByRankRangeAsync(default, 1, 10));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByRankRangeAsync_WithStartRankLessThanOne_ThrowsArgumentOutOfRangeException()
+    {
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.GetEntitiesByRankRangeAsync(LeaderboardKey, 0, 10));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByRankRangeAsync_WithNegativeStartRank_ThrowsArgumentOutOfRangeException()
+    {
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.GetEntitiesByRankRangeAsync(LeaderboardKey, -5, 10));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByRankRangeAsync_WithEndRankLessThanStartRank_ThrowsArgumentOutOfRangeException()
+    {
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.GetEntitiesByRankRangeAsync(LeaderboardKey, 10, 5));
+    }
+
+    [Fact]
+    public async Task GetEntitiesByRankRangeAsync_WithCancelledToken_ThrowsOperationCancelledException()
+    {
+        var leaderboard = new Leaderboard(_mockRedis.Object);
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await leaderboard.GetEntitiesByRankRangeAsync(LeaderboardKey, 1, 10, cancellationToken: cts.Token));
+    }
 }
