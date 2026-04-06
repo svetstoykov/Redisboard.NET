@@ -9,19 +9,7 @@ using StackExchange.Redis;
 
 namespace Redisboard.NET;
 
-/// <summary>
-/// Strongly-typed leaderboard implementation backed by Redis.
-/// All public API methods accept or return <typeparamref name="TEntity"/> directly —
-/// no manual serialization, deserialization, or key management required.
-/// </summary>
-/// <typeparam name="TEntity">
-/// The domain type stored in the leaderboard.
-/// Must implement <see cref="ILeaderboardEntity"/>, expose a parameterless constructor,
-/// and decorate exactly one property with <see cref="Attributes.LeaderboardKeyAttribute"/>
-/// and one with <see cref="Attributes.LeaderboardScoreAttribute"/>.
-/// Attribute validation is performed eagerly on first use via
-/// <see cref="EntityTypeAccessor{TEntity}"/>.
-/// </typeparam>
+/// <inheritdoc cref="ILeaderboard{TEntity}"/>
 public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity, new()
 {
@@ -45,6 +33,12 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <summary>
     /// Initializes a new instance using an <see cref="IConnectionMultiplexer"/> and optional database index.
     /// </summary>
+    /// <param name="connectionMultiplexer">The Redis connection multiplexer.</param>
+    /// <param name="databaseIndex">The Redis database index to use (0 by default).</param>
+    /// <param name="serializer">
+    /// Serializer used for entity metadata persistence.
+    /// Defaults to <see cref="SystemTextJsonLeaderboardSerializer"/>.
+    /// </param>
     public Leaderboard(
         IConnectionMultiplexer connectionMultiplexer,
         int databaseIndex = 0,
