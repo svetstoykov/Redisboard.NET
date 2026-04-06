@@ -20,7 +20,7 @@ public class Player : ILeaderboardEntity
         return new Player
         {
             Key = Guid.NewGuid().ToString(),
-            Score = random.Next(),
+            Score = random.Next(1, 25_000),
             Metadata = JsonSerializer.Serialize(new PlayerData()
             {
                 EntryDate = DateTime.Now,
