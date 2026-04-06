@@ -1,3 +1,5 @@
+using Redisboard.NET.Common.Models;
+
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Redisboard.NET.Tests.Integration;
 /// </summary>
 public abstract class LeaderboardTestBase : IClassFixture<LeaderboardFixture>, IDisposable
 {
-    protected readonly Leaderboard Leaderboard;
+    protected readonly Leaderboard<Player> Leaderboard;
 
     /// <summary>Unique key per test-class instance — ensures full test isolation.</summary>
     protected readonly string Key = $"test_{DateTime.UtcNow.Ticks}_{Guid.NewGuid():N}";
@@ -17,7 +19,11 @@ public abstract class LeaderboardTestBase : IClassFixture<LeaderboardFixture>, I
         Leaderboard = fixture.Instance;
     }
 
-    /// <summary>Seeds players with the given (key, score) pairs using bounded concurrency.</summary>
+    /// <summary>
+    /// Seeds players with the given (key, score) pairs using bounded concurrency.
+    /// Creates <see cref="Player"/> instances with <see cref="Player.Id"/> = key and
+    /// <see cref="Player.Score"/> = score.
+    /// </summary>
     protected async Task SeedAsync(IEnumerable<(string key, double score)> players, int concurrency = 50)
     {
         var sem = new SemaphoreSlim(concurrency);
@@ -26,8 +32,8 @@ public abstract class LeaderboardTestBase : IClassFixture<LeaderboardFixture>, I
             await sem.WaitAsync();
             try
             {
-                await Leaderboard.AddEntityAsync(Key, p.key);
-                await Leaderboard.UpdateEntityScoreAsync(Key, p.key, p.score);
+                var player = new Player { Id = p.key, Score = p.score };
+                await Leaderboard.AddEntityAsync(Key, player);
             }
             finally
             {

@@ -7,7 +7,7 @@ namespace Redisboard.NET.Common.Helpers;
 public static class LeaderboardSeeder
 {
     public static async Task SeedAsync(
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         RedisValue leaderboardId,
         int playersCount)
     {
@@ -19,11 +19,9 @@ public static class LeaderboardSeeder
         {
             for (var j = 0; j < playersPerBatch; j++)
             {
-                var generated = Player.New();
-                
-                await leaderboard.AddEntityAsync(leaderboardId, generated.Key, generated.Metadata, fireAndForget: true);
-                
-                await leaderboard.UpdateEntityScoreAsync(leaderboardId, generated.Key, generated.Score, fireAndForget: true);
+                var player = Player.New();
+
+                await leaderboard.AddEntityAsync(leaderboardId, player, fireAndForget: true);
             }
         }
     }

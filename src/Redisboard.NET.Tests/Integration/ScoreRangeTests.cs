@@ -4,7 +4,7 @@ using Redisboard.NET.Enumerations;
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for <see cref="Leaderboard.GetEntitiesByScoreRangeAsync"/> across all ranking types,
+/// Tests for <see cref="Leaderboard{T}.GetEntitiesByScoreRangeAsync"/> across all ranking types,
 /// including rank-value verification for tied scores and out-of-range queries.
 /// </summary>
 public class ScoreRangeTests : LeaderboardTestBase
@@ -19,7 +19,7 @@ public class ScoreRangeTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 50, 100);
 
         result.Should().HaveCount(3);
-        result.Select(r => (string)r.Key).Should().Contain(["Alex", "John", "Sam"]);
+        result.Select(r => r.Id).Should().Contain(["Alex", "John", "Sam"]);
     }
 
     [Fact]
@@ -36,9 +36,6 @@ public class ScoreRangeTests : LeaderboardTestBase
     //
     // Dataset: top1=300, top2=300, mid1=200, mid2=200, low1=100
     // Query range: [100, 200] → returns mid1, mid2, low1
-    //
-    // Positions (0-based in sorted-set, score desc):
-    //   top1/top2 at 0-1, mid1/mid2 at 2-3, low1 at 4
 
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_AllRankingTypes_CorrectEntitiesReturned()
@@ -50,7 +47,7 @@ public class ScoreRangeTests : LeaderboardTestBase
             var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, rankingType);
 
             result.Should().HaveCount(3, because: $"{rankingType} should return 3 entities");
-            result.Select(e => (string)e.Key).Should().Contain(["mid1", "mid2", "low1"],
+            result.Select(e => e.Id).Should().Contain(["mid1", "mid2", "low1"],
                 because: $"{rankingType} should include all in-range entities");
         }
     }
@@ -62,10 +59,10 @@ public class ScoreRangeTests : LeaderboardTestBase
 
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.DenseRank);
 
-        result.Where(e => e.Key == "mid1" || e.Key == "mid2")
+        result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 2);
 
-        result.First(e => e.Key == "low1").Rank.Should().Be(3);
+        result.First(e => e.Id == "low1").Rank.Should().Be(3);
     }
 
     [Fact]
@@ -75,10 +72,10 @@ public class ScoreRangeTests : LeaderboardTestBase
 
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.StandardCompetition);
 
-        result.Where(e => e.Key == "mid1" || e.Key == "mid2")
+        result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 3);
 
-        result.First(e => e.Key == "low1").Rank.Should().Be(5);
+        result.First(e => e.Id == "low1").Rank.Should().Be(5);
     }
 
     [Fact]
@@ -88,9 +85,9 @@ public class ScoreRangeTests : LeaderboardTestBase
 
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.ModifiedCompetition);
 
-        result.Where(e => e.Key == "mid1" || e.Key == "mid2")
+        result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 4);
 
-        result.First(e => e.Key == "low1").Rank.Should().Be(5);
+        result.First(e => e.Id == "low1").Rank.Should().Be(5);
     }
 }

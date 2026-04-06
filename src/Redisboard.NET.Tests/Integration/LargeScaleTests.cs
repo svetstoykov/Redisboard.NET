@@ -33,10 +33,10 @@ public class LargeScaleTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "a0", offset: GroupSize + 1, RankingType.Default);
 
-        result.Where(e => ((string)e.Key!).StartsWith("a"))
+        result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank >= 1 && e.Rank <= GroupSize);
 
-        result.Where(e => ((string)e.Key!).StartsWith("b"))
+        result.Where(e => e.Id.StartsWith("b"))
             .Should().OnlyContain(e => e.Rank > GroupSize && e.Rank <= GroupSize * 2);
     }
 
@@ -48,13 +48,13 @@ public class LargeScaleTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.DenseRank);
 
-        result.Where(e => ((string)e.Key!).StartsWith("a"))
+        result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == 1);
 
-        result.Where(e => ((string)e.Key!).StartsWith("b"))
+        result.Where(e => e.Id.StartsWith("b"))
             .Should().OnlyContain(e => e.Rank == 2);
 
-        result.Where(e => ((string)e.Key!).StartsWith("c"))
+        result.Where(e => e.Id.StartsWith("c"))
             .Should().OnlyContain(e => e.Rank == 3);
     }
 
@@ -66,13 +66,13 @@ public class LargeScaleTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.StandardCompetition);
 
-        result.Where(e => ((string)e.Key!).StartsWith("a"))
+        result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == 1);
 
-        result.Where(e => ((string)e.Key!).StartsWith("b"))
+        result.Where(e => e.Id.StartsWith("b"))
             .Should().OnlyContain(e => e.Rank == GroupSize + 1);
 
-        result.Where(e => ((string)e.Key!).StartsWith("c"))
+        result.Where(e => e.Id.StartsWith("c"))
             .Should().OnlyContain(e => e.Rank == GroupSize * 2 + 1);
     }
 
@@ -84,13 +84,13 @@ public class LargeScaleTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.ModifiedCompetition);
 
-        result.Where(e => ((string)e.Key!).StartsWith("a"))
+        result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == GroupSize);
 
-        result.Where(e => ((string)e.Key!).StartsWith("b"))
+        result.Where(e => e.Id.StartsWith("b"))
             .Should().OnlyContain(e => e.Rank == GroupSize * 2);
 
-        result.Where(e => ((string)e.Key!).StartsWith("c"))
+        result.Where(e => e.Id.StartsWith("c"))
             .Should().OnlyContain(e => e.Rank == GroupSize * 3);
     }
 
@@ -115,7 +115,7 @@ public class LargeScaleTests : LeaderboardTestBase
             Key, $"p10k_{targetIndex}", offset, rankingType);
 
         result.Should().HaveCount(offset * 2 + 1);
-        result.Should().OnlyContain(r => ((string)r.Key!).StartsWith("p10k_"));
+        result.Should().OnlyContain(r => r.Id.StartsWith("p10k_"));
         result.Should().OnlyContain(r => r.Score > 0);
     }
 

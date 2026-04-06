@@ -3,8 +3,8 @@ using FluentAssertions;
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for <see cref="Leaderboard.DeleteEntityAsync"/> (single entity) and
-/// <see cref="Leaderboard.DeleteAsync"/> (entire leaderboard).
+/// Tests for <see cref="Leaderboard{T}.DeleteEntityAsync"/> (single entity) and
+/// <see cref="Leaderboard{T}.DeleteAsync"/> (entire leaderboard).
 /// </summary>
 public class DeleteTests : LeaderboardTestBase
 {
@@ -23,7 +23,7 @@ public class DeleteTests : LeaderboardTestBase
 
         rank.Should().BeNull();
         score.Should().BeNull();
-        neighbours.Should().NotContain(e => e.Key == "del_top");
+        neighbours.Should().NotContain(e => e.Id == "del_top");
     }
 
     [Fact]

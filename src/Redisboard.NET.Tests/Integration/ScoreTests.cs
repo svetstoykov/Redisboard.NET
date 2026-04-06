@@ -1,10 +1,11 @@
 using FluentAssertions;
+using Redisboard.NET.Common.Models;
 
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for <see cref="Leaderboard.GetEntityScoreAsync"/> and
-/// <see cref="Leaderboard.UpdateEntityScoreAsync"/>.
+/// Tests for <see cref="Leaderboard{T}.GetEntityScoreAsync"/> and
+/// <see cref="Leaderboard{T}.UpdateEntityScoreAsync"/>.
 /// Covers retrieval, precision, updates, and rank transitions after score changes.
 /// </summary>
 public class ScoreTests : LeaderboardTestBase
@@ -46,7 +47,7 @@ public class ScoreTests : LeaderboardTestBase
     {
         await SeedAsync([("Mike", 200), ("Alex", 100), ("John", 100), ("Sam", 50)]);
 
-        await Leaderboard.UpdateEntityScoreAsync(Key, "John", 150);
+        await Leaderboard.UpdateEntityScoreAsync(Key, new Player { Id = "John", Score = 150 });
 
         var result = await Leaderboard.GetEntityScoreAsync(Key, "John");
 
@@ -58,8 +59,8 @@ public class ScoreTests : LeaderboardTestBase
     {
         await SeedAsync([("evolve", 10.0), ("comp_a", 50.0), ("comp_b", 30.0), ("comp_c", 20.0)]);
 
-        await Leaderboard.UpdateEntityScoreAsync(Key, "evolve", 40);
-        await Leaderboard.UpdateEntityScoreAsync(Key, "evolve", 100);
+        await Leaderboard.UpdateEntityScoreAsync(Key, new Player { Id = "evolve", Score = 40 });
+        await Leaderboard.UpdateEntityScoreAsync(Key, new Player { Id = "evolve", Score = 100 });
 
         var score = await Leaderboard.GetEntityScoreAsync(Key, "evolve");
         var rank = await Leaderboard.GetEntityRankAsync(Key, "evolve");
@@ -75,8 +76,8 @@ public class ScoreTests : LeaderboardTestBase
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, "sb", offset: 5);
 
-        result.First(e => e.Key == "sa").Score.Should().BeApproximately(999.5, 1e-5);
-        result.First(e => e.Key == "sb").Score.Should().BeApproximately(500.25, 1e-5);
-        result.First(e => e.Key == "sc").Score.Should().BeApproximately(1.0, 1e-5);
+        result.First(e => e.Id == "sa").Score.Should().BeApproximately(999.5, 1e-5);
+        result.First(e => e.Id == "sb").Score.Should().BeApproximately(500.25, 1e-5);
+        result.First(e => e.Id == "sc").Score.Should().BeApproximately(1.0, 1e-5);
     }
 }

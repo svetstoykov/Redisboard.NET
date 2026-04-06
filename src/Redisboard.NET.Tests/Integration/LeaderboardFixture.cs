@@ -11,18 +11,18 @@ public class LeaderboardFixture : IDisposable
     private IDatabase RedisDatabase { get; init; }
 
     private const int TestDbInstance = 9;
-    
+
     public LeaderboardFixture()
     {
         RedisConnection = ConnectionMultiplexer.Connect("localhost:6379");
         RedisDatabase = RedisConnection.GetDatabase(TestDbInstance);
-        Instance = new Leaderboard(RedisDatabase);
+        Instance = new Leaderboard<Player>(RedisDatabase);
         LeaderboardKey = DateTime.UtcNow.Ticks.ToString();
     }
 
     public string LeaderboardKey { get; init; }
 
-    public Leaderboard Instance { get; init; }
+    public Leaderboard<Player> Instance { get; init; }
 
     public void Dispose()
     {
@@ -37,7 +37,7 @@ public class LeaderboardFixture : IDisposable
             CacheKey.ForEntityDataHashSet(LeaderboardKey),
             CacheKey.ForUniqueScoreSortedSet(LeaderboardKey)
         ];
-        
+
         RedisDatabase.KeyDelete(keys);
     }
 }

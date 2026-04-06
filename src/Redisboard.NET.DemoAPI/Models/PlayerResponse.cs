@@ -1,22 +1,30 @@
-using System.Text.Json;
 using Redisboard.NET.Common.Models;
-using Redisboard.NET.Interfaces;
 
 namespace Redisboard.NET.DemoAPI.Models;
 
+/// <summary>
+/// API response model for player leaderboard entries.
+/// Fields are mapped directly from <see cref="Player"/> — no manual deserialization needed.
+/// </summary>
 public class PlayerResponse
 {
-    public string Key { get; set; }
+    public string Id { get; set; }
     public long Rank { get; set; }
     public double Score { get; set; }
-    public PlayerData Metadata { get; set; }
+    public string Username { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public DateTime EntryDate { get; set; }
 
-    public static PlayerResponse MapFromLeaderboardEntity(ILeaderboardEntity player)
+    public static PlayerResponse From(Player player)
         => new()
         {
-            Key = player.Key,
+            Id = player.Id,
             Rank = player.Rank,
             Score = player.Score,
-            Metadata = JsonSerializer.Deserialize<PlayerData>(player.Metadata.ToString())
+            Username = player.Username,
+            FirstName = player.FirstName,
+            LastName = player.LastName,
+            EntryDate = player.EntryDate
         };
 }

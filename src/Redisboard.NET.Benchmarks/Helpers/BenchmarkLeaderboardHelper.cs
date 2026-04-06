@@ -1,4 +1,5 @@
 using Redisboard.NET.Common.Helpers;
+using Redisboard.NET.Common.Models;
 using Redisboard.NET.Helpers;
 using StackExchange.Redis;
 
@@ -11,7 +12,7 @@ internal static class BenchmarkLeaderboardHelper
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
         var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
 
-        var leaderboard = new Leaderboard(db);
+        var leaderboard = new Leaderboard<Player>(db);
 
         if (await leaderboard.GetSizeAsync(Settings.LeaderboardKey()) == default)
         {
@@ -19,7 +20,7 @@ internal static class BenchmarkLeaderboardHelper
                 leaderboard, Settings.LeaderboardKey(), Settings.LeaderboardPlayerCount);
         }
     }
-    
+
     public static async Task CleanUpBenchmarksLeaderboardAsync()
     {
         var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");

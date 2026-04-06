@@ -1,11 +1,12 @@
 using FluentAssertions;
+using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
 
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for <see cref="Leaderboard.GetEntityAndNeighboursAsync"/> and
-/// <see cref="Leaderboard.GetEntityRankAsync"/> across all ranking types.
+/// Tests for <see cref="Leaderboard{T}.GetEntityAndNeighboursAsync"/> and
+/// <see cref="Leaderboard{T}.GetEntityRankAsync"/> across all ranking types.
 /// Covers rank-value correctness, offset counts for first/middle positions,
 /// and multi-update rank transitions.
 /// </summary>
@@ -23,10 +24,10 @@ public class RankingTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, "Alex", offset: 10);
 
         result.Should().HaveCount(4);
-        result.First(p => p.Key == "Mike").Rank.Should().Be(1);
-        result.First(p => p.Key == "Alex").Rank.Should().Be(2);
-        result.First(p => p.Key == "John").Rank.Should().Be(3);
-        result.First(p => p.Key == "Sam").Rank.Should().Be(4);
+        result.First(p => p.Id == "Mike").Rank.Should().Be(1);
+        result.First(p => p.Id == "Alex").Rank.Should().Be(2);
+        result.First(p => p.Id == "John").Rank.Should().Be(3);
+        result.First(p => p.Id == "Sam").Rank.Should().Be(4);
     }
 
     [Fact]
@@ -38,11 +39,11 @@ public class RankingTests : LeaderboardTestBase
             Key, "player2", offset: 10, RankingType.DenseRank);
 
         result.Should().HaveCount(5);
-        result.First(p => p.Key == "player1").Rank.Should().Be(1);
-        result.First(p => p.Key == "player2").Rank.Should().Be(2);
-        result.First(p => p.Key == "player3").Rank.Should().Be(3);
-        result.First(p => p.Key == "player4").Rank.Should().Be(3);
-        result.First(p => p.Key == "player5").Rank.Should().Be(4);
+        result.First(p => p.Id == "player1").Rank.Should().Be(1);
+        result.First(p => p.Id == "player2").Rank.Should().Be(2);
+        result.First(p => p.Id == "player3").Rank.Should().Be(3);
+        result.First(p => p.Id == "player4").Rank.Should().Be(3);
+        result.First(p => p.Id == "player5").Rank.Should().Be(4);
     }
 
     [Fact]
@@ -54,11 +55,11 @@ public class RankingTests : LeaderboardTestBase
             Key, "player2", offset: 10, RankingType.StandardCompetition);
 
         result.Should().HaveCount(5);
-        result.First(p => p.Key == "player1").Rank.Should().Be(1);
-        result.First(p => p.Key == "player2").Rank.Should().Be(2);
-        result.First(p => p.Key == "player3").Rank.Should().Be(3);
-        result.First(p => p.Key == "player4").Rank.Should().Be(3);
-        result.First(p => p.Key == "player5").Rank.Should().Be(5);
+        result.First(p => p.Id == "player1").Rank.Should().Be(1);
+        result.First(p => p.Id == "player2").Rank.Should().Be(2);
+        result.First(p => p.Id == "player3").Rank.Should().Be(3);
+        result.First(p => p.Id == "player4").Rank.Should().Be(3);
+        result.First(p => p.Id == "player5").Rank.Should().Be(5);
     }
 
     [Fact]
@@ -70,11 +71,11 @@ public class RankingTests : LeaderboardTestBase
             Key, "player2", offset: 10, RankingType.ModifiedCompetition);
 
         result.Should().HaveCount(5);
-        result.First(p => p.Key == "player1").Rank.Should().Be(1);
-        result.First(p => p.Key == "player2").Rank.Should().Be(2);
-        result.First(p => p.Key == "player3").Rank.Should().Be(4);
-        result.First(p => p.Key == "player4").Rank.Should().Be(4);
-        result.First(p => p.Key == "player5").Rank.Should().Be(5);
+        result.First(p => p.Id == "player1").Rank.Should().Be(1);
+        result.First(p => p.Id == "player2").Rank.Should().Be(2);
+        result.First(p => p.Id == "player3").Rank.Should().Be(4);
+        result.First(p => p.Id == "player4").Rank.Should().Be(4);
+        result.First(p => p.Id == "player5").Rank.Should().Be(5);
     }
 
     // GetEntityAndNeighboursAsync — offset count for middle player
@@ -164,7 +165,7 @@ public class RankingTests : LeaderboardTestBase
     {
         await SeedAsync([("player1", 250), ("player2", 200), ("player3", 100), ("player4", 100), ("player5", 50)]);
 
-        await Leaderboard.UpdateEntityScoreAsync(Key, "player5", 40);
+        await Leaderboard.UpdateEntityScoreAsync(Key, new Player { Id = "player5", Score = 40 });
 
         var result = await Leaderboard.GetEntityRankAsync(Key, "player5", RankingType.DenseRank);
 

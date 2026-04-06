@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Redisboard.NET.Common.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.DemoAPI.Models;
@@ -11,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddLeaderboard(cfg =>
+builder.Services.AddLeaderboard<Player>(cfg =>
 {
     cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
@@ -29,68 +28,74 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Seed endpoint
-app.MapPost("/seed", async (SeedLeaderboardRequest player, ILeaderboard leaderboard) =>
-    await LeaderboardSeeder.SeedAsync(leaderboard, player.LeaderboardKey, player.NumberOfEntities));
+app.MapPost("/seed", async (SeedLeaderboardRequest request, ILeaderboard<Player> leaderboard) =>
+    await LeaderboardSeeder.SeedAsync(leaderboard, request.LeaderboardKey, request.NumberOfEntities));
 
-// Add entity
+// Add player
 app.MapPost("/leaderboards/{leaderboardId}/players", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         AddPlayerRequest request) =>
 {
-    await leaderboard.AddEntityAsync(leaderboardId, request.PlayerId, request.Metadata);
-    return Results.Ok(new { Message = "Entity added successfully" });
+    var player = new Player
+    {
+        Id = request.Id,
+        Score = request.Score,
+        Username = request.Username,
+        FirstName = request.FirstName,
+        LastName = request.LastName,
+        EntryDate = DateTime.UtcNow
+    };
+
+    await leaderboard.AddEntityAsync(leaderboardId, player);
+    return Results.Ok(new { Message = "Player added successfully" });
 });
 
-// Get neighbors
+// Get neighbours
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/neighbors", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id,
         int offset = 10,
         RankingType rankingType = RankingType.Default) =>
 {
-    var entities = await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType);
-    return entities.Select(PlayerResponse.MapFromLeaderboardEntity);
+    var players = await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset, rankingType);
+    return players.Select(PlayerResponse.From);
 });
 
 // Get by score range
 app.MapGet("/leaderboards/{leaderboardId}/scores", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         double minScore,
         double maxScore,
         RankingType rankingType = RankingType.Default) =>
 {
-    var entities = await leaderboard.GetEntitiesByScoreRangeAsync(leaderboardId, minScore, maxScore, rankingType);
-    return entities.Select(PlayerResponse.MapFromLeaderboardEntity);
+    var players = await leaderboard.GetEntitiesByScoreRangeAsync(leaderboardId, minScore, maxScore, rankingType);
+    return players.Select(PlayerResponse.From);
 });
 
 // Update score
 app.MapPut("/leaderboards/{leaderboardId}/players/{id}/score", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id,
         UpdateScoreRequest request) =>
 {
-    await leaderboard.UpdateEntityScoreAsync(leaderboardId, id, request.NewScore);
-    return Results.Ok(new { Message = "Score updated successfully" });
-});
+    // Read current state then update score
+    var existing = await leaderboard.GetEntityAndNeighboursAsync(leaderboardId, id, offset: 0);
+    if (existing.Length == 0) return Results.NotFound();
 
-// Update metadata
-app.MapPut("/leaderboards/{leaderboardId}/players/{id}/metadata", async (
-        ILeaderboard leaderboard,
-        string leaderboardId,
-        string id,
-        UpdateMetadataRequest request) =>
-{
-    await leaderboard.UpdateEntityMetadataAsync(leaderboardId, id, request.Metadata);
-    return Results.Ok(new { Message = "Metadata updated successfully" });
+    var player = existing.First(p => p.Id == id);
+    player.Score = request.NewScore;
+
+    await leaderboard.UpdateEntityScoreAsync(leaderboardId, player);
+    return Results.Ok(new { Message = "Score updated successfully" });
 });
 
 // Get score
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/score", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id) =>
 {
@@ -100,7 +105,7 @@ app.MapGet("/leaderboards/{leaderboardId}/players/{id}/score", async (
 
 // Get rank
 app.MapGet("/leaderboards/{leaderboardId}/players/{id}/rank", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id,
         RankingType rankingType = RankingType.Default) =>
@@ -109,50 +114,40 @@ app.MapGet("/leaderboards/{leaderboardId}/players/{id}/rank", async (
     return new EntityResponse { Key = id, Rank = rank };
 });
 
-// Get metadata
-app.MapGet("/leaderboards/{leaderboardId}/players/{id}/metadata", async (
-        ILeaderboard leaderboard,
-        string leaderboardId,
-        string id) =>
-{
-    var metadata = await leaderboard.GetEntityMetadataAsync(leaderboardId, id);
-    return new EntityResponse { Key = id, Metadata = metadata };
-});
-
 // Get by rank range
 app.MapGet("/leaderboards/{leaderboardId}/players", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         long startRank,
         long endRank,
         RankingType rankingType = RankingType.Default) =>
 {
-    var entities = await leaderboard.GetEntitiesByRankRangeAsync(leaderboardId, startRank, endRank, rankingType);
-    return entities.Select(PlayerResponse.MapFromLeaderboardEntity);
+    var players = await leaderboard.GetEntitiesByRankRangeAsync(leaderboardId, startRank, endRank, rankingType);
+    return players.Select(PlayerResponse.From);
 });
 
 // Get size
 app.MapGet("/leaderboards/{leaderboardId}/size", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId) =>
 {
     var size = await leaderboard.GetSizeAsync(leaderboardId);
     return new SizeResponse { Size = size };
 });
 
-// Delete entity
+// Delete player
 app.MapDelete("/leaderboards/{leaderboardId}/players/{id}", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId,
         string id) =>
 {
     await leaderboard.DeleteEntityAsync(leaderboardId, id);
-    return Results.Ok(new { Message = "Entity deleted successfully" });
+    return Results.Ok(new { Message = "Player deleted successfully" });
 });
 
 // Delete leaderboard
 app.MapDelete("/leaderboards/{leaderboardId}", async (
-        ILeaderboard leaderboard,
+        ILeaderboard<Player> leaderboard,
         string leaderboardId) =>
 {
     await leaderboard.DeleteAsync(leaderboardId);

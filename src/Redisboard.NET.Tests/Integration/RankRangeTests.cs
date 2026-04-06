@@ -4,7 +4,7 @@ using Redisboard.NET.Enumerations;
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for <see cref="Leaderboard.GetEntitiesByRankRangeAsync"/> across all ranking types,
+/// Tests for <see cref="Leaderboard{T}.GetEntitiesByRankRangeAsync"/> across all ranking types,
 /// including empty leaderboards, exact ranges, and out-of-bounds ranges.
 /// </summary>
 public class RankRangeTests : LeaderboardTestBase
@@ -21,11 +21,11 @@ public class RankRangeTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 3);
 
         result.Should().HaveCount(3);
-        result[0].Key.Should().Be("A");
+        result[0].Id.Should().Be("A");
         result[0].Rank.Should().Be(1);
-        result[1].Key.Should().Be("B");
+        result[1].Id.Should().Be("B");
         result[1].Rank.Should().Be(2);
-        result[2].Key.Should().Be("C");
+        result[2].Id.Should().Be("C");
         result[2].Rank.Should().Be(3);
     }
 
@@ -37,7 +37,7 @@ public class RankRangeTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 2, 4);
 
         result.Should().HaveCount(3);
-        result.Select(e => (string)e.Key).Should().ContainInOrder("B", "C", "D");
+        result.Select(e => e.Id).Should().ContainInOrder("B", "C", "D");
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class RankRangeTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 2, 2);
 
         result.Should().HaveCount(1);
-        result[0].Key.Should().Be("B");
+        result[0].Id.Should().Be("B");
         result[0].Rank.Should().Be(2);
     }
 
@@ -154,11 +154,11 @@ public class RankRangeTests : LeaderboardTestBase
 
         var rangeResult = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 5);
 
-        foreach (var entity in rangeResult)
+        foreach (var player in rangeResult)
         {
-            var individualRank = await Leaderboard.GetEntityRankAsync(Key, entity.Key);
-            entity.Rank.Should().Be(individualRank!.Value,
-                because: $"rank of {entity.Key} from range query should match individual rank query");
+            var individualRank = await Leaderboard.GetEntityRankAsync(Key, player.Id);
+            player.Rank.Should().Be(individualRank!.Value,
+                because: $"rank of {player.Id} from range query should match individual rank query");
         }
     }
 }

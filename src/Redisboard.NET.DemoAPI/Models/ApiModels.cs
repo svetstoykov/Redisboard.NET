@@ -1,9 +1,13 @@
 namespace Redisboard.NET.DemoAPI.Models;
 
+/// <summary>Request body for adding a new player to a leaderboard.</summary>
 public class AddPlayerRequest
 {
-    public string PlayerId { get; set; }
-    public string Metadata { get; set; }
+    public string Id { get; set; }
+    public double Score { get; set; }
+    public string Username { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
 }
 
 public class UpdateScoreRequest
@@ -11,17 +15,11 @@ public class UpdateScoreRequest
     public double NewScore { get; set; }
 }
 
-public class UpdateMetadataRequest
-{
-    public string Metadata { get; set; }
-}
-
 public class EntityResponse
 {
     public string Key { get; set; }
     public double? Score { get; set; }
     public long? Rank { get; set; }
-    public string Metadata { get; set; }
 }
 
 public class SizeResponse

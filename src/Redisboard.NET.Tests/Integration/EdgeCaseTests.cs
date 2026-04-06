@@ -39,6 +39,6 @@ public class EdgeCaseTests : LeaderboardTestBase
         var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, "last_1", offset: 3);
 
         result.Should().HaveCount(4); // 3 neighbours above + itself
-        result.Should().Contain(e => e.Key == "last_1");
+        result.Should().Contain(e => e.Id == "last_1");
     }
 }

@@ -1,93 +1,72 @@
-using System.Text.Json;
 using FluentAssertions;
 using Redisboard.NET.Common.Models;
 
 namespace Redisboard.NET.Tests.Integration;
 
 /// <summary>
-/// Tests for metadata operations: <see cref="Leaderboard.AddEntityAsync"/> with metadata,
-/// <see cref="Leaderboard.GetEntityMetadataAsync"/>, <see cref="Leaderboard.UpdateEntityMetadataAsync"/>,
-/// and <see cref="Leaderboard.GetSizeAsync"/> (which counts entities in the metadata hash-set).
+/// Tests that player domain properties (Username, FirstName, LastName, EntryDate) are correctly
+/// persisted and retrieved by the generic leaderboard. Also covers <see cref="Leaderboard{T}.GetSizeAsync"/>
+/// and metadata updates via <see cref="Leaderboard{T}.UpdateEntityMetadataAsync"/>.
 /// </summary>
 public class MetadataTests : LeaderboardTestBase
 {
     public MetadataTests(LeaderboardFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task AddEntityAsync_WithMetadata_MetadataIsImmediatelyRetrievable()
+    public async Task AddEntityAsync_WithDomainProperties_PropertiesAreRetrievable()
     {
-        var entityKey = Guid.NewGuid().ToString();
-        var metadata = new PlayerData
+        var player = new Player
         {
+            Id = Guid.NewGuid().ToString(),
+            Score = 500,
             Username = "insert_user",
             FirstName = "Insert",
             LastName = "Test",
-            EntryDate = DateTime.UtcNow
+            EntryDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc)
         };
-        var serialized = JsonSerializer.Serialize(metadata);
 
-        await Leaderboard.AddEntityAsync(Key, entityKey, serialized);
+        await Leaderboard.AddEntityAsync(Key, player);
 
-        var stored = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
+        var results = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 1);
+        var stored = results.Single();
 
-        stored.Should().NotBe(default);
-        var deserialized = JsonSerializer.Deserialize<PlayerData>(stored.ToString());
-        deserialized!.Username.Should().Be(metadata.Username);
-        deserialized.FirstName.Should().Be(metadata.FirstName);
-        deserialized.LastName.Should().Be(metadata.LastName);
+        stored.Username.Should().Be(player.Username);
+        stored.FirstName.Should().Be(player.FirstName);
+        stored.LastName.Should().Be(player.LastName);
+        stored.EntryDate.Should().BeCloseTo(player.EntryDate, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
-    public async Task AddEntityAsync_WithoutMetadata_MetadataIsDefault()
+    public async Task UpdateEntityMetadataAsync_ReflectsNewDomainProperties()
     {
-        var entityKey = Guid.NewGuid().ToString();
-
-        await Leaderboard.AddEntityAsync(Key, entityKey);
-
-        var stored = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
-
-        stored.Should().Be(default);
-    }
-
-    [Fact]
-    public async Task UpdateEntityMetadataAsync_ReturnsUpdatedMetadata()
-    {
-        var entityKey = Guid.NewGuid().ToString();
-        var metadata = new PlayerData
+        var player = new Player
         {
-            EntryDate = DateTime.UtcNow,
+            Id = Guid.NewGuid().ToString(),
+            Score = 100,
+            Username = "original",
             FirstName = "John",
             LastName = "Doe",
-            Username = "nobody"
+            EntryDate = DateTime.UtcNow
         };
 
-        await Leaderboard.AddEntityAsync(Key, entityKey);
+        await Leaderboard.AddEntityAsync(Key, player);
 
-        var metadataBeforeUpdate = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
-        metadataBeforeUpdate.Should().Be(default);
+        player.Username = "updated";
+        player.FirstName = "Jane";
 
-        await Leaderboard.UpdateEntityMetadataAsync(Key, entityKey, JsonSerializer.Serialize(metadata));
+        await Leaderboard.UpdateEntityMetadataAsync(Key, player);
 
-        var metadataAfterUpdate = await Leaderboard.GetEntityMetadataAsync(Key, entityKey);
-        var deserialized = JsonSerializer.Deserialize<PlayerData>(metadataAfterUpdate.ToString());
+        var results = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 1);
+        var stored = results.Single();
 
-        deserialized!.FirstName.Should().Be(metadata.FirstName);
-        deserialized.LastName.Should().Be(metadata.LastName);
-        deserialized.Username.Should().Be(metadata.Username);
-        deserialized.EntryDate.Should().Be(metadata.EntryDate);
+        stored.Username.Should().Be("updated");
+        stored.FirstName.Should().Be("Jane");
     }
 
     [Fact]
-    public async Task GetSizeAsync_WithMetadataEntities_ReturnsCorrectCount()
+    public async Task GetSizeAsync_WithEntities_ReturnsCorrectCount()
     {
         const int count = 100;
-        var metadata = JsonSerializer.Serialize(new PlayerData
-        {
-            Username = "test_user",
-            FirstName = "Size",
-            LastName = "Test",
-            EntryDate = DateTime.UtcNow
-        });
 
         var sem = new SemaphoreSlim(50);
         var tasks = Enumerable.Range(0, count).Select(async i =>
@@ -95,9 +74,8 @@ public class MetadataTests : LeaderboardTestBase
             await sem.WaitAsync();
             try
             {
-                var key = $"sz_{i}";
-                await Leaderboard.AddEntityAsync(Key, key, metadata);
-                await Leaderboard.UpdateEntityScoreAsync(Key, key, i);
+                var p = new Player { Id = $"sz_{i}", Score = i, Username = $"user_{i}" };
+                await Leaderboard.AddEntityAsync(Key, p);
             }
             finally { sem.Release(); }
         });
@@ -112,16 +90,11 @@ public class MetadataTests : LeaderboardTestBase
     public async Task GetSizeAsync_AfterDeleteEntity_DecreasesCount()
     {
         const int count = 10;
-        var metadata = JsonSerializer.Serialize(new PlayerData
-        {
-            Username = "sz_user", FirstName = "A", LastName = "B", EntryDate = DateTime.UtcNow
-        });
 
         for (var i = 0; i < count; i++)
         {
-            var key = $"szdel_{i}";
-            await Leaderboard.AddEntityAsync(Key, key, metadata);
-            await Leaderboard.UpdateEntityScoreAsync(Key, key, i);
+            var p = new Player { Id = $"szdel_{i}", Score = i, Username = $"u{i}" };
+            await Leaderboard.AddEntityAsync(Key, p);
         }
 
         await Leaderboard.DeleteEntityAsync(Key, "szdel_0");
