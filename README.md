@@ -129,10 +129,15 @@ public class SystemTextJsonSerializer : ILeaderboardSerializer
         => JsonSerializer.Deserialize<T>(data)!;
 }
 
+builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, new SystemTextJsonSerializer());
+
+// Or via manually created object
+
 var leaderboard = new Leaderboard<Player>(redis, new SystemTextJsonSerializer());
 ```
+
 ### **Dependency Injection** 
-If you wish to use DI should install the [Redisboard.NET.Extensions]() package and register the Leaderboard in your `IServiceCollection`  
+Register the Leaderboard in your `IServiceCollection` using the built-in extension method:
 
 ```cs
 // Add to IServiceCollection
@@ -146,7 +151,7 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 
 *\* Config delegate is not required, if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis))*
 
-Once registered, your need to inject the `ILeaderboard<Player>` interface via the constructor
+Once registered, inject `ILeaderboard<Player>` via the constructor:
 
 ``` cs
 public class MyService
@@ -368,3 +373,4 @@ We are benchmarking the most common method - getting a entity and their neighbor
 
 ## Dependencies
 - [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)
+- [Microsoft.Extensions.DependencyInjection](https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.Extensions.DependencyInjection)
