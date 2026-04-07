@@ -5,6 +5,22 @@ namespace Redisboard.NET.Helpers;
 
 internal static class Guard
 {
+    public static void AgainstNullOrEmptyCollection<T>(IEnumerable<T> values, string parameterName)
+    {
+        if (values is null)
+            throw new ArgumentNullException(parameterName, "Collection cannot be null.");
+
+        if (!values.Any())
+            throw new ArgumentException("Collection cannot be empty.", parameterName);
+    }
+
+    public static void AgainstCollectionSizeExceeded(int count, int maxCount, string parameterName)
+    {
+        if (count > maxCount)
+            throw new ArgumentOutOfRangeException(parameterName,
+                $"Collection size cannot exceed {maxCount} items in a single operation.");
+    }
+
     public static void AgainstInvalidIdentityKey(RedisValue identityKey)
     {
         if (identityKey.IsNull || !identityKey.HasValue || identityKey == default)

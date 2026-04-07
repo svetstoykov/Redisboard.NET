@@ -14,6 +14,12 @@ internal static class LeaderboardScript
     private static readonly Lazy<LuaScript> UpdateEntityScore =
         new(() => LuaScript.Prepare(LoadLuaScript("update_entity_score.lua")));
 
+    private static readonly Lazy<LuaScript> AddEntitiesBatch =
+        new(() => LuaScript.Prepare(LoadLuaScript("add_entities_batch.lua")));
+
+    private static readonly Lazy<LuaScript> DeleteEntitiesBatch =
+        new(() => LuaScript.Prepare(LoadLuaScript("delete_entities_batch.lua")));
+
     public static LuaScript ForEntityKeysByRangeWithCompetitionRank()
         => EntityKeysByRangeWithCompetitionRank.Value;
 
@@ -22,6 +28,12 @@ internal static class LeaderboardScript
 
     public static LuaScript ForUpdateEntityScore()
         => UpdateEntityScore.Value;
+
+    public static LuaScript ForAddEntitiesBatch()
+        => AddEntitiesBatch.Value;
+
+    public static LuaScript ForDeleteEntitiesBatch()
+        => DeleteEntitiesBatch.Value;
 
     private static string LoadLuaScript(string scriptName)
     {

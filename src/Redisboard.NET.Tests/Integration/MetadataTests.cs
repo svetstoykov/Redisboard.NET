@@ -103,4 +103,35 @@ public class MetadataTests : LeaderboardTestBase
 
         size.Should().Be(count - 1);
     }
+
+    [Fact]
+    public async Task AddEntitiesAsync_BatchAdd_PersistsScoresAndMetadataForAllEntities()
+    {
+        var players = new[]
+        {
+            new Player { Id = "batch_meta_1", Score = 350, Username = "u1", FirstName = "Ada", LastName = "Lovelace", EntryDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Player { Id = "batch_meta_2", Score = 420, Username = "u2", FirstName = "Grace", LastName = "Hopper", EntryDate = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Player { Id = "batch_meta_3", Score = 120, Username = "u3", FirstName = "Alan", LastName = "Turing", EntryDate = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc) }
+        };
+
+        await Leaderboard.AddEntitiesAsync(Key, players);
+
+        var board = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, players.Length);
+        var byId = board.ToDictionary(p => p.Id);
+
+        foreach (var expected in players)
+        {
+            byId.Should().ContainKey(expected.Id);
+
+            var stored = byId[expected.Id];
+            stored.Score.Should().Be(expected.Score);
+            stored.Username.Should().Be(expected.Username);
+            stored.FirstName.Should().Be(expected.FirstName);
+            stored.LastName.Should().Be(expected.LastName);
+            stored.EntryDate.Should().Be(expected.EntryDate);
+
+            var score = await Leaderboard.GetEntityScoreAsync(Key, expected.Id);
+            score.Should().Be(expected.Score);
+        }
+    }
 }

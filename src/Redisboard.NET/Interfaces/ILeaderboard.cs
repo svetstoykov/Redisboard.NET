@@ -49,6 +49,24 @@ public interface ILeaderboard<TEntity>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Adds multiple entities to the leaderboard in a single batch operation.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies the leaderboard (e.g., "game:session:42").</param>
+    /// <param name="entities">Domain entities to add. Each entity contributes key, score, and serialized metadata just like <see cref="AddEntityAsync"/>.</param>
+    /// <param name="fireAndForget">If <c>true</c>, the operation returns immediately without waiting for Redis confirmation.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
+    /// <remarks>
+    /// The batch is applied atomically: each entity is added to the leaderboard sorted set,
+    /// unique-score sorted set, and metadata hash within one Redis transaction.
+    /// Keep batch sizes reasonable; very large transactions increase memory pressure and may be rejected by Redis.
+    /// </remarks>
+    Task AddEntitiesAsync(
+        RedisValue leaderboardKey,
+        IEnumerable<TEntity> entities,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Updates only the score of an entity that already exists in the leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Identifies the leaderboard.</param>
@@ -185,6 +203,21 @@ public interface ILeaderboard<TEntity>
     Task DeleteEntityAsync(
         RedisValue leaderboardKey,
         RedisValue entityKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes multiple entities from the leaderboard in a single batch operation.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies the leaderboard.</param>
+    /// <param name="entityKeys">The unique keys of entities to remove.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
+    /// <remarks>
+    /// This deletes each entity from the leaderboard sorted set and metadata hash.
+    /// Batch removals are executed in one transaction for efficiency.
+    /// </remarks>
+    Task DeleteEntitiesAsync(
+        RedisValue leaderboardKey,
+        IEnumerable<RedisValue> entityKeys,
         CancellationToken cancellationToken = default);
 
     /// <summary>

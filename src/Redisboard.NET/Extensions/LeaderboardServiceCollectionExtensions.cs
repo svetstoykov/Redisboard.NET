@@ -27,6 +27,7 @@ public static class LeaderboardServiceCollectionExtensions
     /// An action to configure the Redis <see cref="ConfigurationOptions"/>.
     /// Not required if <see cref="IConnectionMultiplexer"/> is already registered in the container.
     /// </param>
+    /// <param name="databaseIndex">The Redis database index used by <see cref="Leaderboard{TEntity}"/>. Defaults to 0.</param>
     /// <param name="serializer">
     /// Optional custom <see cref="ILeaderboardSerializer"/> implementation.
     /// When <c>null</c>, the default <see cref="MemoryPackLeaderboardSerializer"/> is used.
@@ -39,6 +40,7 @@ public static class LeaderboardServiceCollectionExtensions
     public static IServiceCollection AddLeaderboard<TEntity>(
         this IServiceCollection services,
         Action<ConfigurationOptions> optionsAction = default,
+        int databaseIndex = 0,
         ILeaderboardSerializer serializer = default)
         where TEntity : ILeaderboardEntity, new()
     {
@@ -46,11 +48,11 @@ public static class LeaderboardServiceCollectionExtensions
 
         services.AddSingleton(serializer);
 
-        services.AddScoped<ILeaderboard<TEntity>>(sp =>
+        services.AddSingleton<ILeaderboard<TEntity>>(sp =>
         {
             var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
             var leaderboardSerializer = sp.GetRequiredService<ILeaderboardSerializer>();
-            return new Leaderboard<TEntity>(multiplexer, serializer: leaderboardSerializer);
+            return new Leaderboard<TEntity>(multiplexer, leaderboardSerializer, databaseIndex);
         });
 
         return RegisterRedis(services, optionsAction);
@@ -63,7 +65,7 @@ public static class LeaderboardServiceCollectionExtensions
         if (services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
             return services;
 
-        if (optionsAction == default)
+        if (optionsAction is null)
             throw new ArgumentNullException(
                 nameof(optionsAction),
                 "An options delegate must be provided if IConnectionMultiplexer is not already registered.");
@@ -72,7 +74,7 @@ public static class LeaderboardServiceCollectionExtensions
         optionsAction.Invoke(redisOptions);
 
         services.AddSingleton<IConnectionMultiplexer>(
-            ConnectionMultiplexer.Connect(redisOptions));
+            sp => ConnectionMultiplexer.Connect(redisOptions));
 
         return services;
     }

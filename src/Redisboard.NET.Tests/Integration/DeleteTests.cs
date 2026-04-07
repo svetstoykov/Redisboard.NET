@@ -1,4 +1,5 @@
 using FluentAssertions;
+using StackExchange.Redis;
 
 namespace Redisboard.NET.Tests.Integration;
 
@@ -56,5 +57,27 @@ public class DeleteTests : LeaderboardTestBase
         rank.Should().BeNull();
         score.Should().BeNull();
         neighbours.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteEntitiesAsync_BatchDelete_RemovesAllEntities()
+    {
+        await SeedAsync([("batch_del_1", 500.0), ("batch_del_2", 450.0), ("batch_del_3", 400.0)]);
+
+        RedisValue[] keysToDelete = ["batch_del_1", "batch_del_2", "batch_del_3"];
+
+        await Leaderboard.DeleteEntitiesAsync(Key, keysToDelete);
+
+        foreach (var key in keysToDelete)
+        {
+            var rank = await Leaderboard.GetEntityRankAsync(Key, key);
+            var score = await Leaderboard.GetEntityScoreAsync(Key, key);
+
+            rank.Should().BeNull();
+            score.Should().BeNull();
+        }
+
+        var size = await Leaderboard.GetSizeAsync(Key);
+        size.Should().Be(0);
     }
 }

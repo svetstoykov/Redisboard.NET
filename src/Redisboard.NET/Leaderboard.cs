@@ -1,4 +1,3 @@
-using System.Transactions;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
@@ -6,7 +5,6 @@ using Redisboard.NET.Models;
 using ILeaderboardSerializer = Redisboard.NET.Serialization.ILeaderboardSerializer;
 using MemoryPackLeaderboardSerializer = Redisboard.NET.Serialization.MemoryPackLeaderboardSerializer;
 using StackExchange.Redis;
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
 namespace Redisboard.NET;
 
@@ -14,6 +12,8 @@ namespace Redisboard.NET;
 public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity, new()
 {
+    internal const int MaxBatchOperationSize = 10_000;
+
     private readonly IDatabase _redis;
     private readonly ILeaderboardSerializer _serializer;
 
@@ -67,15 +67,71 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var invertedScore = -score;
 
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
+        ];
+
+        RedisValue[] args = [entityKey, invertedScore, metadata];
+
+        var script = LeaderboardScript.ForAddEntitiesBatch().ExecutableScript;
         var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
 
-        var transaction = _redis.CreateTransaction();
+        cancellationToken.ThrowIfCancellationRequested();
+        await _redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
+    }
 
-        transaction.SortedSetAddAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey, invertedScore, commandFlags);
-        transaction.SortedSetAddAsync(CacheKey.ForUniqueScoreSortedSet(leaderboardKey), invertedScore, invertedScore, commandFlags);
-        transaction.HashSetAsync(CacheKey.ForEntityDataHashSet(leaderboardKey), entityKey, metadata, flags: commandFlags);
+    /// <inheritdoc />
+    public async Task AddEntitiesAsync(
+        RedisValue leaderboardKey,
+        IEnumerable<TEntity> entities,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstNullOrEmptyCollection(entities, nameof(entities));
 
-        await TryExecuteTransactionAsync(transaction, cancellationToken, "Failed to add entity to leaderboard!");
+        var entries = entities.ToArray();
+
+        Guard.AgainstCollectionSizeExceeded(entries.Length, MaxBatchOperationSize, nameof(entities));
+
+        var args = new RedisValue[entries.Length * 3];
+
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var entry = entries[i];
+
+            var entityKey = EntityTypeAccessor<TEntity>.GetKey(entry);
+            Guard.AgainstInvalidIdentityKey(entityKey);
+
+            var score = EntityTypeAccessor<TEntity>.GetScore(entry);
+            Guard.AgainstInvalidScore(score);
+
+            var metadata = _serializer.Serialize(entry);
+            Guard.AgainstInvalidMetadata(metadata);
+
+            var invertedScore = -score;
+            var index = i * 3;
+
+            args[index] = entityKey;
+            args[index + 1] = invertedScore;
+            args[index + 2] = metadata;
+        }
+
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
+        ];
+
+        var script = LeaderboardScript.ForAddEntitiesBatch().ExecutableScript;
+        var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await _redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
     }
 
     /// <inheritdoc />
@@ -258,13 +314,50 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
 
-        var transaction = _redis.CreateTransaction();
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
+        ];
 
-        transaction.SortedSetRemoveAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
-        transaction.HashDeleteAsync(CacheKey.ForEntityDataHashSet(leaderboardKey), entityKey);
-        transaction.SortedSetRemoveAsync(CacheKey.ForUniqueScoreSortedSet(leaderboardKey), entityKey);
+        RedisValue[] args = [entityKey];
 
-        await TryExecuteTransactionAsync(transaction, cancellationToken, "Failed to delete entity from leaderboard!");
+        var script = LeaderboardScript.ForDeleteEntitiesBatch().ExecutableScript;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await _redis.ScriptEvaluateAsync(script, keys, args);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteEntitiesAsync(
+        RedisValue leaderboardKey,
+        IEnumerable<RedisValue> entityKeys,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstNullOrEmptyCollection(entityKeys, nameof(entityKeys));
+
+        var keysToDelete = entityKeys.ToArray();
+
+        Guard.AgainstCollectionSizeExceeded(keysToDelete.Length, MaxBatchOperationSize, nameof(entityKeys));
+
+        for (var i = 0; i < keysToDelete.Length; i++)
+        {
+            Guard.AgainstInvalidIdentityKey(keysToDelete[i]);
+        }
+
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
+        ];
+
+        var script = LeaderboardScript.ForDeleteEntitiesBatch().ExecutableScript;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await _redis.ScriptEvaluateAsync(script, keys, keysToDelete);
     }
 
     /// <inheritdoc />
@@ -404,16 +497,6 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         }
 
         return leaderboard;
-    }
-
-    private static async Task TryExecuteTransactionAsync(
-        ITransaction transaction,
-        CancellationToken cancellationToken = default,
-        string errorMessage = "Failed to execute transaction!")
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var committed = await transaction.ExecuteAsync();
-        if (!committed) throw new TransactionException(errorMessage);
     }
 
     private static double NormalizeScore(double score)
