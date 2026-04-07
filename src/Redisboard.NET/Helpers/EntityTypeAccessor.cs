@@ -9,10 +9,9 @@ using StackExchange.Redis;
 namespace Redisboard.NET.Helpers;
 
 /// <summary>
-/// Caches compiled expression-tree delegates for the
-/// <see cref="LeaderboardKeyAttribute"/> and <see cref="LeaderboardScoreAttribute"/>
-/// properties of a given entity type.
-/// All lookups are performed once per closed generic type via the CLR's
+/// Provides cached, compiled property accessors for the key and score
+/// properties of <typeparamref name="TEntity"/>.
+/// Accessors are resolved once per closed generic type via the CLR's
 /// static-per-T guarantee — no dictionary needed.
 /// </summary>
 internal static class EntityTypeAccessor<TEntity>
@@ -45,6 +44,11 @@ internal static class EntityTypeAccessor<TEntity>
         Accessors.ScoreSetter(entity, score);
     }
 
+    /// <summary>
+    /// Reflects over <typeparamref name="TEntity"/> to find the properties marked with
+    /// <see cref="LeaderboardKeyAttribute"/> and <see cref="LeaderboardScoreAttribute"/>,
+    /// validates their types, and compiles expression-tree delegates for each.
+    /// </summary>
     private static (
         Func<TEntity, RedisValue> KeyGetter,
         Action<TEntity, RedisValue> KeySetter,
@@ -72,11 +76,9 @@ internal static class EntityTypeAccessor<TEntity>
         );
     }
 
-    // Compiled delegates
-
     /// <summary>
-    /// Compiles: (TEntity e) => e.Key converted to RedisValue
-    /// Handles string, Guid, int, long, and RedisValue property types with zero boxing.
+    /// Builds a getter that reads the key property and converts it to <see cref="RedisValue"/>
+    /// without boxing. Supports string, Guid, int, long, and RedisValue.
     /// </summary>
     private static Func<TEntity, RedisValue> BuildKeyGetter(PropertyInfo prop)
     {
@@ -91,24 +93,23 @@ internal static class EntityTypeAccessor<TEntity>
         }
         else if (t == typeof(string))
         {
-            // (RedisValue)(e.Key ?? "") — implicit string->RedisValue conversion
+            // Coalesce to empty string before the implicit string -> RedisValue conversion,
+            // so a null key becomes RedisValue.EmptyString rather than RedisValue.Null.
             var coalesce = Expression.Coalesce(access, Expression.Constant(string.Empty));
             body = Expression.Convert(coalesce, typeof(RedisValue));
         }
         else if (t == typeof(Guid))
         {
-            // (RedisValue)e.Key.ToString()
+            // Guid has no implicit RedisValue conversion, so we go through its string form.
             var toString = Expression.Call(access, typeof(Guid).GetMethod(nameof(Guid.ToString), Type.EmptyTypes)!);
             body = Expression.Convert(toString, typeof(RedisValue));
         }
         else if (t == typeof(int))
         {
-            // (RedisValue)(int)e.Key — implicit int->RedisValue conversion
             body = Expression.Convert(access, typeof(RedisValue));
         }
         else if (t == typeof(long))
         {
-            // (RedisValue)(long)e.Key — implicit long->RedisValue conversion
             body = Expression.Convert(access, typeof(RedisValue));
         }
         else
@@ -121,8 +122,8 @@ internal static class EntityTypeAccessor<TEntity>
     }
 
     /// <summary>
-    /// Compiles: (TEntity e, RedisValue v) => e.Key = convert(v)
-    /// Directly assigns the converted value without boxing.
+    /// Builds a setter that converts a <see cref="RedisValue"/> to the key property's
+    /// declared type and assigns it directly, without boxing.
     /// </summary>
     private static Action<TEntity, RedisValue> BuildKeySetter(PropertyInfo prop)
     {
@@ -137,13 +138,12 @@ internal static class EntityTypeAccessor<TEntity>
         }
         else if (t == typeof(string))
         {
-            // v.ToString() — RedisValue.ToString() returns the underlying string
             var toStringMethod = typeof(RedisValue).GetMethod(nameof(RedisValue.ToString), Type.EmptyTypes)!;
             converted = Expression.Call(valueParam, toStringMethod);
         }
         else if (t == typeof(Guid))
         {
-            // Guid.Parse(v.ToString())
+            // Two-step: RedisValue -> string -> Guid.Parse
             var toStringMethod = typeof(RedisValue).GetMethod(nameof(RedisValue.ToString), Type.EmptyTypes)!;
             var asString = Expression.Call(valueParam, toStringMethod);
             var parseMethod = typeof(Guid).GetMethod(nameof(Guid.Parse), new[] { typeof(string) })!;
@@ -151,12 +151,12 @@ internal static class EntityTypeAccessor<TEntity>
         }
         else if (t == typeof(int))
         {
-            // (int)v — explicit RedisValue->int conversion
+            // Uses RedisValue's explicit operator int(RedisValue).
             converted = Expression.Convert(valueParam, typeof(int));
         }
         else if (t == typeof(long))
         {
-            // (long)v — explicit RedisValue->long conversion
+            // Uses RedisValue's explicit operator long(RedisValue).
             converted = Expression.Convert(valueParam, typeof(long));
         }
         else
@@ -170,15 +170,16 @@ internal static class EntityTypeAccessor<TEntity>
     }
 
     /// <summary>
-    /// Compiles: (TEntity e) => (double)e.Score
-    /// Widens int/long/float to double at the IL level — no boxing, no Convert.ToDouble.
+    /// Builds a getter that reads the score property and widens it to <c>double</c>
+    /// via IL-level conversion (e.g. conv.r8). No boxing or <see cref="Convert.ToDouble(object)"/>.
     /// </summary>
     private static Func<TEntity, double> BuildScoreGetter(PropertyInfo prop)
     {
         var param = Expression.Parameter(typeof(TEntity), "e");
         var access = Expression.Property(param, prop);
 
-        // Expression.Convert emits the correct widening IL (conv.r8, etc.)
+        // Expression.Convert emits the appropriate widening IL instruction
+        // (conv.r8 for int/long, conv.r.un for float, identity for double).
         var asDouble = prop.PropertyType == typeof(double)
             ? (Expression)access
             : Expression.Convert(access, typeof(double));
@@ -187,14 +188,16 @@ internal static class EntityTypeAccessor<TEntity>
     }
 
     /// <summary>
-    /// Compiles: (TEntity e, double s) => e.Score = (T)s
-    /// Narrows double to the target type at the IL level — no boxing.
+    /// Builds a setter that narrows a <c>double</c> to the score property's declared type
+    /// via IL-level conversion and assigns it directly, without boxing.
     /// </summary>
     private static Action<TEntity, double> BuildScoreSetter(PropertyInfo prop)
     {
         var entityParam = Expression.Parameter(typeof(TEntity), "e");
         var scoreParam = Expression.Parameter(typeof(double), "s");
 
+        // For non-double types (float, int, long) this emits a narrowing IL instruction.
+        // Callers are responsible for ensuring the value fits the target range.
         Expression converted = prop.PropertyType == typeof(double)
             ? (Expression)scoreParam
             : Expression.Convert(scoreParam, prop.PropertyType);
@@ -203,8 +206,10 @@ internal static class EntityTypeAccessor<TEntity>
         return Expression.Lambda<Action<TEntity, double>>(assign, entityParam, scoreParam).Compile();
     }
 
-    // Validation
-
+    /// <summary>
+    /// Finds exactly one property on <paramref name="type"/> carrying <typeparamref name="TAttribute"/>.
+    /// Throws if zero or more than one match is found.
+    /// </summary>
     private static PropertyInfo ResolveSingleProperty<TAttribute>(Type type, List<PropertyInfo> allProperties)
         where TAttribute : Attribute
     {
@@ -245,5 +250,4 @@ internal static class EntityTypeAccessor<TEntity>
                 $"Property '{prop.DeclaringType!.FullName}.{prop.Name}' is decorated with [{nameof(LeaderboardScoreAttribute)}] " +
                 $"but its type '{t.Name}' is not supported. Supported types: double, float, int, long.");
     }
-
 }

@@ -11,18 +11,21 @@ public static class LeaderboardSeeder
         RedisValue leaderboardId,
         int playersCount)
     {
-        const int batchInsertRepeat = 100;
+        const int batchSize = 10_000;
 
-        var playersPerBatch = playersCount / 100;
+        var batchesCount = (int)Math.Ceiling((double)playersCount / batchSize);
 
-        for (var i = 0; i < batchInsertRepeat; i++)
+        for (var i = 0; i < batchesCount; i++)
         {
-            for (var j = 0; j < playersPerBatch; j++)
-            {
-                var player = Player.New();
+            var currentBatchSize = Math.Min(batchSize, playersCount - (i * batchSize));
+            var players = new Player[currentBatchSize];
 
-                await leaderboard.AddEntityAsync(leaderboardId, player, fireAndForget: true);
+            for (var j = 0; j < currentBatchSize; j++)
+            {
+                players[j] = Player.New();
             }
+
+            await leaderboard.AddEntitiesAsync(leaderboardId, players, fireAndForget: true);
         }
     }
 }
