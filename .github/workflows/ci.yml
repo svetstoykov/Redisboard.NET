@@ -19,10 +19,14 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet build src/Redisboard.NET --configuration Release
+      - run: dotnet restore src/Redisboard.NET
+      - run: dotnet restore src/Redisboard.NET.Tests
+      - run: dotnet build src/Redisboard.NET --configuration Release --no-restore
       - run: dotnet test src/Redisboard.NET.Tests --configuration Release --no-restore
