@@ -40,7 +40,7 @@ public interface ILeaderboard<TEntity>
     /// <remarks>
     /// The entity's <see cref="Attributes.LeaderboardKeyAttribute"/>-annotated property is used as the unique identifier.
     /// The <see cref="Attributes.LeaderboardScoreAttribute"/>-annotated property provides the initial score.
-    /// All other public properties are serialized as JSON and stored as metadata in a Redis hash.
+    /// All other public properties are serialized using the configured serializer and stored as metadata in a Redis hash.
     /// </remarks>
     Task AddEntityAsync(
         RedisValue leaderboardKey,
@@ -90,7 +90,7 @@ public interface ILeaderboard<TEntity>
     /// <param name="fireAndForget">If <c>true</c>, the operation returns immediately without waiting for Redis confirmation.</param>
     /// <param name="cancellationToken">Propagates notification that the operation should be cancelled.</param>
     /// <remarks>
-    /// The entity's score in the leaderboard is not affected. Re-serializes all public properties (except the key and score) as JSON and replaces the stored metadata.
+    /// The entity's score in the leaderboard is not affected. Re-serializes all public properties (except the key and score) using the configured serializer and replaces the stored metadata.
     /// </remarks>
     Task UpdateEntityMetadataAsync(
         RedisValue leaderboardKey,
