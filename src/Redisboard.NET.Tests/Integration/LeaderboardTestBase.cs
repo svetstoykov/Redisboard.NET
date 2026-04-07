@@ -43,6 +43,31 @@ public abstract class LeaderboardTestBase : IClassFixture<LeaderboardFixture>, I
         await Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// Seeds players in Redis using batch add operations.
+    /// This is optimized for large datasets while respecting the API batch limit.
+    /// </summary>
+    protected async Task SeedBulkAsync(IEnumerable<(string key, double score)> players, int batchSize = 1_000)
+    {
+        const int maxBatchSize = 10_000;
+
+        if (batchSize <= 0 || batchSize > maxBatchSize)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(batchSize),
+                $"Batch size must be between 1 and {maxBatchSize}.");
+        }
+
+        var entries = players
+            .Select(p => new Player { Id = p.key, Score = p.score })
+            .ToArray();
+
+        foreach (var batch in entries.Chunk(batchSize))
+        {
+            await Leaderboard.AddEntitiesAsync(Key, batch);
+        }
+    }
+
     public void Dispose()
     {
         Leaderboard.DeleteAsync(Key).GetAwaiter().GetResult();

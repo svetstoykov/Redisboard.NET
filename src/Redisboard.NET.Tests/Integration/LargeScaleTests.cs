@@ -28,7 +28,7 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_DefaultRanking_GroupRangesAreCorrect()
     {
-        await SeedAsync(ThreeGroupPlayers());
+        await SeedBulkAsync(ThreeGroupPlayers());
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "a0", offset: GroupSize + 1, RankingType.Default);
@@ -43,7 +43,7 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_DenseRanking_AllGroupsHaveCorrectRank()
     {
-        await SeedAsync(ThreeGroupPlayers());
+        await SeedBulkAsync(ThreeGroupPlayers());
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.DenseRank);
@@ -61,7 +61,7 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_StandardCompetition_AllGroupsHaveCorrectRank()
     {
-        await SeedAsync(ThreeGroupPlayers());
+        await SeedBulkAsync(ThreeGroupPlayers());
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.StandardCompetition);
@@ -79,7 +79,7 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_ModifiedCompetition_AllGroupsHaveCorrectRank()
     {
-        await SeedAsync(ThreeGroupPlayers());
+        await SeedBulkAsync(ThreeGroupPlayers());
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.ModifiedCompetition);
@@ -107,9 +107,9 @@ public class LargeScaleTests : LeaderboardTestBase
         const int offset = 50;
         const int targetIndex = 5_000;
 
-        await SeedAsync(
+        await SeedBulkAsync(
             Enumerable.Range(0, total).Select(i => ($"p10k_{i}", (double)i)),
-            concurrency: 100);
+            batchSize: 1_000);
 
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, $"p10k_{targetIndex}", offset, rankingType);
@@ -134,9 +134,10 @@ public class LargeScaleTests : LeaderboardTestBase
 
         var random = new Random();
         var offset = random.Next(minOffset, maxOffset);
-        var playersCount = random.Next(offset + 1, maxPlayersCount);
+        // Ensure there is always enough room for a full symmetric window around the target player.
+        var playersCount = random.Next(offset * 2 + 2, maxPlayersCount + 1);
 
-        await SeedAsync(
+        await SeedBulkAsync(
             Enumerable.Range(0, playersCount).Select(i => ($"player{i}", (double)i)));
 
         var playerIndex = random.Next(offset + 1, playersCount - offset);
