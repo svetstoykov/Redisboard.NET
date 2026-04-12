@@ -76,7 +76,7 @@ Example result:
 Rank  Player   Points
 1     Bob      150
 2     Maya     125
-3     **player1** 100
+3  -> player1 100
 4     Sam      90
 5     Nina     80
 ```
@@ -192,6 +192,8 @@ var leaderboard = new Leaderboard<Player>(redis, new SystemTextJsonSerializer())
 ### **Dependency Injection** 
 Register the Leaderboard in your `IServiceCollection` using the built-in extension method:
 
+`AddLeaderboard` also registers an `IConnectionMultiplexer` internally when you provide a config delegate and no existing Redis services are already registered. The `cfg` object is StackExchange.Redis `ConfigurationOptions`, so any supported connection settings can be configured there.
+
 ```cs
 // Add to IServiceCollection
 builder.Services.AddLeaderboard<Player>(cfg =>
@@ -203,6 +205,8 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 ```
 
 *\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+
+See StackExchange.Redis configuration docs for more `ConfigurationOptions` settings: [Basics](https://stackexchange.github.io/StackExchange.Redis/Basics.html) and [Configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html).
 
 Once registered, inject `ILeaderboard<Player>` via the constructor:
 
