@@ -235,14 +235,16 @@ This repository also includes a very simple API project, which shows how you can
 https://github.com/svetstoykov/Redisboard.NET/tree/main/src/Redisboard.NET.DemoAPI)
 
 ## Ranking
-The rankings of the players are calculated on the fly when querying the data. Under the hood we are using multiple Redis data structures ([Sorted Set](https://redis.io/docs/latest/develop/data-types/sorted-sets/) and [Hash](https://redis.io/docs/latest/develop/data-types/hashes/)) and LUA scripts for queryin. This provides us with a **response time of under 1ms for over 500k players** in a leaderboard.
+Ranks are calculated when you query data. Redisboard.NET stores leaderboard scores in a Redis [Sorted Set](https://redis.io/docs/latest/develop/data-types/sorted-sets/) and entity metadata in a Redis [Hash](https://redis.io/docs/latest/develop/data-types/hashes/). It then uses Lua scripts to read both efficiently and apply the selected ranking rules.
 
-When querying data, you need to specify the `RankingType`, which can be one of the following:
+This design keeps writes simple and makes reads fast. In our benchmarks, querying a leaderboard with more than 500,000 players stays under 1 ms for the common read paths shown below.
+
+Every read API that returns ranks requires a `RankingType`. That value controls how ties are handled.
 
 ### 1. Default Ranking 🏆
-Members are ordered by score first, and if there are ties in scores, they are then ordered **lexicographically**. There is no skipping in the records ranking.  
+Players are ordered by score first. If two or more players have the same score, Redis uses the member key as a tie-breaker and orders those tied players **lexicographically**. Each player still gets a unique rank number, so no rank numbers are shared or skipped.
 
-(*This is Redis Sorted Set default ranking style.*)
+This is the default ordering behavior of a Redis Sorted Set.
 
 **Example:**
 ```
@@ -252,7 +254,7 @@ Ranks: [1, 2, 3, 4]
 
 
 ### 2. [Dense Rank](https://en.wikipedia.org/wiki/Ranking#Dense_ranking_(%221223%22_ranking)) 🥇🥈
-Items that compare equally receive the same ranking number, and the next items receive the immediately following ranking number.
+Players with the same score receive the same rank. The next distinct score receives the next rank number with no gaps.
 
 **Example:**
 ```
@@ -262,7 +264,7 @@ Ranks: [1, 2, 3, 3, 4, 5]
 
 
 ### 3. [Standard Competition](https://en.wikipedia.org/wiki/Ranking#Standard_competition_ranking_(%221224%22_ranking)) 🏅
-Items that compare equally receive the same ranking number, and then a gap is left in the ranking numbers.
+Players with the same score receive the same rank. The next distinct score skips ahead by the number of tied players.
 
 **Example:**
 ```
@@ -272,13 +274,15 @@ Ranks: [1, 2, 3, 3, 5, 6]
 
 
 ### 4. [Modified Competition](https://en.wikipedia.org/wiki/Ranking#Modified_competition_ranking_(%221334%22_ranking)) 🎖️
-Leaves the gaps in the ranking numbers before the sets of equal-ranking items.
+Players with the same score receive the same rank, but the gap appears before the tied group instead of after it.
 
 **Example:**
 ```
 Scores: [100, 80, 50, 50, 40, 10]
 Ranks: [1, 2, 4, 4, 5, 6]
 ```
+
+Use `RankingType.Default` when you want Redis native ordering and a unique position for every player. Use one of the other ranking types when tied scores should share the same displayed rank.
 
 ## Benchmarks 🚀
 
@@ -389,5 +393,6 @@ What these benchmarks show:
 
 
 ## Dependencies
+- [MemoryPack](https://github.com/Cysharp/MemoryPack)
 - [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)
 - [Microsoft.Extensions.DependencyInjection](https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.Extensions.DependencyInjection)
