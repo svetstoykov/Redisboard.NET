@@ -11,7 +11,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <ProjectType>Library</ProjectType>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.0.1</Version>
+        <Version>1.0.2</Version>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/svetstoykov/Redisboard.NET</PackageProjectUrl>
         <RepositoryUrl>https://github.com/svetstoykov/Redisboard.NET</RepositoryUrl>
