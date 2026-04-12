@@ -28,9 +28,9 @@ jobs:
       - run: dotnet restore src/Redisboard.NET.Tests
       - run: dotnet build src/Redisboard.NET --configuration Release --no-restore
       - run: dotnet test src/Redisboard.NET.Tests --configuration Release --no-restore
-      - run: dotnet pack src/Redisboard.NET --configuration Release --no-restore
+      - run: dotnet pack src/Redisboard.NET --configuration Release --no-restore --output ./artifacts
       - run: >
-          dotnet nuget push src/Redisboard.NET/bin/Release/*.nupkg
+          dotnet nuget push ./artifacts/*.nupkg
           --api-key ${{ secrets.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate

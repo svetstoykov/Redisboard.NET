@@ -1,5 +1,10 @@
 # Redisboard.NET 🚀
 
+[![CI](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Redisboard.NET)](https://www.nuget.org/packages/Redisboard.NET/)
+[![Downloads](https://img.shields.io/nuget/dt/Redisboard.NET)](https://www.nuget.org/packages/Redisboard.NET/)
+[![License](https://img.shields.io/github/license/svetstoykov/Redisboard.NET)](https://github.com/svetstoykov/Redisboard.NET/blob/main/LICENSE)
+
 ### A high-performance .NET Library for creating and interacting with Leaderboards using Redis.
 
 Redisboard.NET is an optimized .NET library designed to handle leaderboards efficiently using Redis. It provides a simple, yet powerful API to create and manage leaderboards with various ranking systems. The library leverages Redis sorted sets for performance and uses LUA scripts for advanced querying capabilities.
