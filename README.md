@@ -53,7 +53,7 @@ Start managing your leaderboard with the `Leaderboard<Player>` class:
 const string leaderboardKey = "your_leaderboard_key"
 
 // Initialize a Leaderboard by passing IDatabase or IConnectionMultiplexer
-var leaderboard = new Leaderboard<Player>(redis);
+var leaderboard = new Leaderboard<Player>(redis, new MemoryPackLeaderboardSerializer());
 
 var players = new[]
 {
@@ -68,6 +68,61 @@ await leaderboard.AddEntityAsync(leaderboardKey, players[1]);
 // Retrieve player and neighbors (offset is default 10)
 var result = await leaderboard.GetEntityAndNeighboursAsync(
     leaderboardKey, "player1", RankingType.Default);
+```
+
+Example result:
+
+```text
+Rank  Player   Points
+1     Bob      150
+2     Maya     125
+3     **player1** 100
+4     Sam      90
+5     Nina     80
+```
+
+Other common APIs:
+
+```cs
+// Add many players in one batch operation.
+await leaderboard.AddEntitiesAsync(leaderboardKey, players);
+
+// Update only score for an existing player.
+await leaderboard.UpdateEntityScoreAsync(
+    leaderboardKey,
+    new Player { Id = "player1", Score = 175 });
+
+// Update metadata without changing rank or score.
+await leaderboard.UpdateEntityMetadataAsync(
+    leaderboardKey,
+    new Player { Id = "player1", Score = 175, Username = "Alice", AvatarUrl = "avatar.png" });
+
+// Get players between rank 1 and rank 10.
+var topTen = await leaderboard.GetEntitiesByRankRangeAsync(
+    leaderboardKey, 1, 10, RankingType.Default);
+
+// Get players whose scores fall within an inclusive range.
+var scoreRange = await leaderboard.GetEntitiesByScoreRangeAsync(
+    leaderboardKey, 80, 150, RankingType.Default);
+
+// Get single player's current score.
+var playerScore = await leaderboard.GetEntityScoreAsync(leaderboardKey, "player1");
+
+// Get single player's current rank.
+var playerRank = await leaderboard.GetEntityRankAsync(
+    leaderboardKey, "player1", RankingType.Default);
+
+// Get total number of players in leaderboard.
+var totalPlayers = await leaderboard.GetSizeAsync(leaderboardKey);
+
+// Delete one player from leaderboard.
+await leaderboard.DeleteEntityAsync(leaderboardKey, "player1");
+
+// Delete many players in one batch.
+await leaderboard.DeleteEntitiesAsync(leaderboardKey, ["player1", "player2"]);
+
+// Delete entire leaderboard and all associated Redis data.
+await leaderboard.DeleteAsync(leaderboardKey);
 ```
 
 ## Entity Requirements
@@ -147,7 +202,7 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 });
 ```
 
-*\* Config delegate is not required, if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis))*
+*\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
 
 Once registered, inject `ILeaderboard<Player>` via the constructor:
 
