@@ -86,7 +86,7 @@ public class LeaderboardTests
     [Fact]
     public async Task AddEntitiesAsync_WithTooManyEntities_ThrowsArgumentOutOfRangeException()
     {
-        var entries = Enumerable.Range(0, Leaderboard<Player>.MaxBatchOperationSize + 1)
+        var entries = Enumerable.Range(0, Leaderboard<Player>.DefaultMaxBatchOperationSize + 1)
             .Select(i => new Player { Id = $"p_{i}", Score = i });
 
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
