@@ -4,10 +4,9 @@ internal readonly struct LeaderboardStats
 {
     public LeaderboardStats(long rank, double score)
     {
-        Rank = rank;
-        Score = score;
+        this.Rank = rank;
+        this.Score = score;
     }
-    
     public long Rank { get; }
     public double Score { get; }
 }

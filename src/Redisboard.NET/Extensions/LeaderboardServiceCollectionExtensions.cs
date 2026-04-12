@@ -8,35 +8,40 @@ using StackExchange.Redis;
 namespace Redisboard.NET.Extensions;
 
 /// <summary>
-/// Extension methods for <see cref="IServiceCollection"/> to register leaderboard services.
+/// Provides dependency injection registration helpers for leaderboard services.
 /// </summary>
+/// <remarks>
+/// These extensions register <see cref="ILeaderboard{TEntity}"/> together with the Redis connection and
+/// serializer dependencies required by <see cref="Leaderboard{TEntity}"/>.
+/// </remarks>
 public static class LeaderboardServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="ILeaderboard{TEntity}"/> → <see cref="Leaderboard{TEntity}"/> in the service collection
-    /// using the default <see cref="MemoryPackLeaderboardSerializer"/>.
+    /// Registers leaderboard services for an entity type.
     /// </summary>
     /// <typeparam name="TEntity">
-    /// The domain type stored in the leaderboard.
-    /// Must implement <see cref="ILeaderboardEntity"/>, expose a parameterless constructor,
-    /// and carry exactly one <see cref="Redisboard.NET.Attributes.LeaderboardKeyAttribute"/> and one
-    /// <see cref="Redisboard.NET.Attributes.LeaderboardScoreAttribute"/> on its properties.
+    /// Entity type stored in leaderboard. It must implement <see cref="ILeaderboardEntity"/>, expose a
+    /// parameterless constructor, and declare exactly one key property and one score property by using
+    /// <see cref="Redisboard.NET.Attributes.LeaderboardKeyAttribute"/> and
+    /// <see cref="Redisboard.NET.Attributes.LeaderboardScoreAttribute"/>.
     /// </typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="optionsAction">
-    /// An action to configure the Redis <see cref="ConfigurationOptions"/>.
-    /// Not required if <see cref="IConnectionMultiplexer"/> is already registered in the container.
-    /// </param>
-    /// <param name="databaseIndex">The Redis database index used by <see cref="Leaderboard{TEntity}"/>. Defaults to 0.</param>
-    /// <param name="serializer">
-    /// Optional custom <see cref="ILeaderboardSerializer"/> implementation.
-    /// When <c>null</c>, the default <see cref="MemoryPackLeaderboardSerializer"/> is used.
-    /// </param>
-    /// <returns>The updated service collection.</returns>
-    /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="optionsAction"/> is <c>null</c> and <see cref="IConnectionMultiplexer"/>
-    /// is not already registered.
-    /// </exception>
+    /// <param name="services">Service collection that receives leaderboard registrations.</param>
+    /// <param name="optionsAction">Configures Redis connection options when <see cref="IConnectionMultiplexer"/> is not already registered. When <see langword="null"/>, an existing multiplexer registration is required.</param>
+    /// <param name="databaseIndex">Zero-based Redis database index resolved for <see cref="Leaderboard{TEntity}"/> instances.</param>
+    /// <param name="serializer">Serializer used for entity metadata. When <see langword="null"/>, <see cref="MemoryPackLeaderboardSerializer"/> is registered.</param>
+    /// <returns>Same <paramref name="services"/> instance so calls can be chained.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method registers serializer and leaderboard services as singletons. Reuse a shared
+    /// <see cref="IConnectionMultiplexer"/> whenever possible because StackExchange.Redis connections are
+    /// designed for long-lived application scope.
+    /// </para>
+    /// <para>
+    /// If no <see cref="IConnectionMultiplexer"/> is already registered, this method builds one from
+    /// <paramref name="optionsAction"/>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="optionsAction"/> is <see langword="null"/> and <see cref="IConnectionMultiplexer"/> is not already registered.</exception>
     public static IServiceCollection AddLeaderboard<TEntity>(
         this IServiceCollection services,
         Action<ConfigurationOptions> optionsAction = default,

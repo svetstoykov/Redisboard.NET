@@ -1,62 +1,61 @@
-﻿namespace Redisboard.NET.Enumerations;
+namespace Redisboard.NET.Enumerations;
 
 /// <summary>
-/// Defines the ranking strategy used to assign ranks to members in a leaderboard.
+/// Defines ranking rules used when converting scores into visible rank numbers.
 /// </summary>
 /// <remarks>
-/// Different ranking types determine how tied scores are handled and how
-/// subsequent ranks are assigned. The choice of ranking type affects both
-/// the rank values returned and whether gaps appear in the ranking sequence.
+/// Different values control how ties affect returned ranks and whether gaps appear in ranking sequence.
 /// </remarks>
 public enum RankingType
 {
     /// <summary>
-    /// Lexicographic ordering with no rank skipping.
+    /// Assigns unique consecutive ranks and breaks score ties lexicographically.
     /// </summary>
     /// <remarks>
-    /// Members are ordered by score first, then lexicographically for ties.
-    /// Every member receives a unique, consecutive rank regardless of ties.
     /// <para>
-    /// <b>Example:</b> Scores [100, 100, 99, 1] produce ranks [1, 2, 3, 4].
+    /// This mode matches Redis sorted set ordering. Equal scores do not share a rank.
+    /// </para>
+    /// <para>
+    /// Example: scores [100, 100, 99, 1] produce ranks [1, 2, 3, 4].
     /// </para>
     /// </remarks>
     Default = 1,
 
     /// <summary>
-    /// Tied members share the same rank; the next distinct score receives the immediately following rank.
+    /// Assigns same rank to tied scores without leaving gaps between distinct ranks.
     /// </summary>
     /// <remarks>
-    /// No gaps are introduced in the ranking sequence. Equal scores always
-    /// produce equal ranks, and the next rank increments by exactly one.
     /// <para>
-    /// <b>Example:</b> Scores [100, 100, 50, 40, 40] produce ranks [1, 1, 2, 3, 3].
+    /// Equal scores share one rank and next distinct score increments rank by one.
+    /// </para>
+    /// <para>
+    /// Example: scores [100, 100, 50, 40, 40] produce ranks [1, 1, 2, 3, 3].
     /// </para>
     /// </remarks>
     DenseRank = 2,
 
     /// <summary>
-    /// Tied members share the lowest applicable rank; a gap follows to account for the number of tied members.
+    /// Assigns same rank to tied scores and leaves gap after each tied group.
     /// </summary>
     /// <remarks>
-    /// Also known as "1224" ranking. All tied members receive the same rank,
-    /// and the next member's rank jumps by the number of tied entries,
-    /// leaving a gap after each set of ties.
     /// <para>
-    /// <b>Example:</b> Scores [100, 100, 50, 40, 40] produce ranks [1, 1, 3, 4, 4].
+    /// This is standard competition ranking, also known as 1224 ranking.
+    /// </para>
+    /// <para>
+    /// Example: scores [100, 100, 50, 40, 40] produce ranks [1, 1, 3, 4, 4].
     /// </para>
     /// </remarks>
     StandardCompetition = 3,
 
     /// <summary>
-    /// Tied members share the highest applicable rank; a gap precedes each set of tied members.
+    /// Assigns same rank to tied scores and leaves gap before each tied group.
     /// </summary>
     /// <remarks>
-    /// Also known as "1334" ranking. Instead of placing the gap after tied
-    /// entries (as in standard competition), the gap appears before them.
-    /// Each tied group receives the rank equal to the position of the last
-    /// member in that group.
     /// <para>
-    /// <b>Example:</b> Scores [100, 100, 50, 40, 40] produce ranks [2, 2, 3, 5, 5].
+    /// This is modified competition ranking, also known as 1334 ranking.
+    /// </para>
+    /// <para>
+    /// Example: scores [100, 100, 50, 40, 40] produce ranks [2, 2, 3, 5, 5].
     /// </para>
     /// </remarks>
     ModifiedCompetition = 4

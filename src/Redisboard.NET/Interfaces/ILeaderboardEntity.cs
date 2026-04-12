@@ -1,12 +1,20 @@
 namespace Redisboard.NET.Interfaces;
 
 /// <summary>
-/// Marker interface for entities stored in a leaderboard.
-/// Implement this interface on your domain type and decorate exactly one property
-/// with <see cref="Redisboard.NET.Attributes.LeaderboardKeyAttribute"/> and exactly one with
-/// <see cref="Redisboard.NET.Attributes.LeaderboardScoreAttribute"/>.
-/// The library will populate <see cref="Rank"/> automatically on every read operation.
+/// Represents an entity that can participate in a leaderboard.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Implementations must declare exactly one property marked with
+/// <see cref="Redisboard.NET.Attributes.LeaderboardKeyAttribute"/> and exactly one property marked with
+/// <see cref="Redisboard.NET.Attributes.LeaderboardScoreAttribute"/> so leaderboard operations can map the
+/// entity to Redis keys and scores.
+/// </para>
+/// <para>
+/// <see cref="Rank"/> is populated by leaderboard read operations. Implementations should treat it as
+/// library-managed output rather than user-supplied input.
+/// </para>
+/// </remarks>
 /// <example>
 /// <code>
 /// public class Player : ILeaderboardEntity
@@ -26,9 +34,10 @@ namespace Redisboard.NET.Interfaces;
 public interface ILeaderboardEntity
 {
     /// <summary>
-    /// Gets or sets the rank of the entity in the leaderboard.
-    /// This value is assigned by the library on every read operation and reflects the
-    /// requested <see cref="Enumerations.RankingType"/>.
+    /// Gets or sets leaderboard rank assigned to this entity.
     /// </summary>
+    /// <remarks>
+    /// Read operations overwrite this value to reflect requested <see cref="Enumerations.RankingType"/>.
+    /// </remarks>
     long Rank { get; set; }
 }

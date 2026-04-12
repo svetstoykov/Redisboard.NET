@@ -1,26 +1,24 @@
 ---
 name: testing-principles
 description: >
-  Apply best practices for writing unit, integration, and end-to-end (E2E) tests.
+  Apply best practices for writing unit and integration tests for Redisboard.NET.
   Use this skill whenever the user asks for help writing, reviewing, or structuring
-  tests of any kind — including xUnit, NUnit, MSTest, Vitest, or any other framework.
+  tests of any kind - including xUnit, NUnit, MSTest, Vitest, or any other framework.
   Trigger on phrases like "write a test", "add unit tests", "review my tests",
-  "how should I test this", "help with integration tests", "E2E test setup", or any
-  request to improve test coverage or test quality. E2E in this context means running
-  a real agent loop against a live LLM API (OpenRouter, Anthropic, etc.), not browser
-  automation. Also trigger when the user shares existing test code that smells wrong
-  or is hard to maintain — even if they don't explicitly ask for a review.
+  "how should I test this", "help with integration tests", or any request to
+  improve test coverage or test quality. Also trigger when the user shares existing
+  test code that smells wrong or is hard to maintain - even if they don't explicitly
+  ask for a review.
 ---
 
 # Testing Principles
 
 Canonical shared guidance also lives at `ai/skills/testing-principles.md`. Keep this Kilo skill aligned with that file so non-Kilo agents can follow the same behavior.
 
-A decision-making and code-generation guide for writing high-quality unit, integration,
-and E2E tests. These five principles apply across all frameworks and languages but
-examples are given in C#/.NET (xUnit + FluentAssertions) to reflect the primary usage
-context. E2E in this context means running a real agent loop against a live LLM API
-— not browser automation.
+A decision-making and code-generation guide for writing high-quality unit and integration
+tests. These five principles apply across all frameworks and languages but examples are
+given in C#/.NET (xUnit assertions) to reflect the primary usage context in
+Redisboard.NET.
 
 ---
 
@@ -30,71 +28,69 @@ context. E2E in this context means running a real agent loop against a live LLM 
 
 Every test has exactly three phases, clearly separated:
 
-- **Arrange** — set up the system under test (SUT), its dependencies, and input data
-- **Act** — invoke the single operation being tested
-- **Assert** — verify the observable outcome
+- **Arrange** - set up system under test (SUT), dependencies, and input data
+- **Act** - invoke single operation being tested
+- **Assert** - verify observable outcome
 
 ```csharp
-// C# / xUnit
 [Fact]
-public async Task PlaceOrder_WhenInventorySufficient_ReturnsConfirmedOrder()
+public async Task AddEntityAsync_WhenEntityIsValid_PersistsEntityAndScore()
 {
     // Arrange
-    var inventory = new FakeInventory(stock: 10);
-    var service = new OrderService(inventory);
-    var request = new OrderRequest(productId: "SKU-1", quantity: 3);
+    var leaderboard = CreateLeaderboard();
+    var player = new Player { Id = "p1", Score = 120, Username = "alice" };
 
     // Act
-    var result = await service.PlaceOrderAsync(request);
+    await leaderboard.AddEntityAsync("season-1", player);
 
     // Assert
-    result.Status.Should().Be(OrderStatus.Confirmed);
+    var stored = await leaderboard.GetEntityAsync("season-1", "p1", RankingType.Default);
+    Assert.NotNull(stored);
+    Assert.Equal(120, stored.Score);
 }
 ```
 
-**Smell to watch for:** Setup and assertion mixed together, or assertions spread across
-multiple logical phases. If you can't identify the three phases at a glance, split the test.
+**Smell to watch for:** setup and assertion mixed together, or assertions spread across
+multiple logical phases. If three phases are not obvious, split test.
 
 ---
 
 ### 2. One Behavior Per Test
 
-Each test should have a single reason to fail. Name the test after the *behavior*, not
-the method:
+Each test should have single reason to fail. Name test after behavior, not method:
 
 ```
 // Bad
-CreateOrder_Test()
+Leaderboard_Test()
 
 // Good
-CreateOrder_WhenInventoryInsufficient_Returns422()
-CreateOrder_WhenProductDiscontinued_ThrowsProductUnavailableException()
-CreateOrder_WhenQuantityIsZero_ReturnsBadRequest()
+AddEntityAsync_WhenKeyAlreadyExists_OverwritesStoredMetadata()
+GetEntityAndNeighboursAsync_WhenEntityMissing_ReturnsNull()
+GetRangeAsync_WhenUsingDenseRank_AssignsSharedRanksForTiedScores()
 ```
 
-Multiple `Assert` calls are fine if they all verify facets of the same behavior
-(e.g., checking both `StatusCode` and `ErrorMessage` on a 422 response).
-What's not fine is testing two *distinct behaviors* in one test body.
+Multiple `Assert` calls are fine if they verify same behavior from different angles.
+Do not combine unrelated behaviors in one test.
 
 ---
 
 ### 3. Test Behavior, Not Implementation
 
-Assert on observable outcomes — return values, state changes, HTTP responses, UI
-changes — not on internal mechanics.
+Assert on observable outcomes - returned entities, persisted Redis state, computed
+ranks, thrown exceptions, serialized values - not internal call counts or private steps.
 
 ```csharp
-// Bad: tests implementation detail (how many times a method was called)
-mockRepo.Verify(r => r.SaveAsync(It.IsAny<Order>()), Times.Once);
+// Bad: tests implementation detail
+mockDatabase.Verify(x => x.SortedSetAddAsync(...), Times.Once);
 
-// Good: tests the observable outcome
-var saved = await db.Orders.FindAsync(result.OrderId);
-saved.Should().NotBeNull();
-saved!.Status.Should().Be(OrderStatus.Pending);
+// Good: tests observable behavior
+var result = await leaderboard.GetEntityAsync("season-1", "p1", RankingType.Default);
+Assert.NotNull(result);
+Assert.Equal(1, result.Rank);
 ```
 
-Corollary: prefer fakes and stubs over mocks where possible. Mocks encode
-implementation assumptions; fakes encode behavioral contracts.
+Prefer fakes and controlled integration environments over mocks when possible. Mocks
+lock tests to implementation shape. Behavior-focused tests survive refactors.
 
 ---
 
@@ -102,383 +98,262 @@ implementation assumptions; fakes encode behavioral contracts.
 
 | Layer | Isolation strategy |
 |---|---|
-| **Unit** | No I/O. Inject all dependencies. Use fakes/stubs for time, randomness, and LLM calls. |
-| **Integration** | Own your state. Swap real LLM clients for deterministic fakes at the boundary. Each test constructs its own conversation from scratch. |
-| **E2E** | Real LLM API calls (OpenRouter, Anthropic, etc.). Gate behind a `[Trait]` category so they never run in standard CI. Each test constructs its own conversation from scratch — no shared state. Assert structurally, not on exact text. |
+| **Unit** | No network or Redis I/O. Inject dependencies. Use fakes/stubs for time, serialization, or scripts. |
+| **Integration** | Use real Redis with isolated keys or database state owned by test. Each test creates and cleans its own data. |
 
 ```csharp
-// Controlling time in .NET
-public class FakeClock : ISystemClock
+public sealed class FakeClock : ISystemClock
 {
-    public DateTimeOffset UtcNow { get; set; } = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    public DateTimeOffset UtcNow { get; set; } = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
 }
 ```
 
-A flaky test — one that passes sometimes and fails other times — is worse than no test.
-It erodes trust in the entire suite. Treat flakiness as a P1 bug.
+Flaky tests are unacceptable. If ranking depends on ordering rules, seed exact data and
+assert exact rank outcomes. If Redis state can leak between tests, isolate by prefixing
+keys with test-specific IDs.
 
 ---
 
 ### 5. Meaningful Failure Messages
 
-When a test fails in CI at 2am, the failure output is the only context available.
+When test fails in CI, failure output must explain problem without opening source code.
 
-- Use a fluent assertion library that produces readable diffs (`FluentAssertions` in .NET,
-  `expect` from Vitest/Jest with `.toMatchObject`)
-- Name test cases using the pattern: `Subject_Scenario_ExpectedOutcome`
-- Mirror your test project structure to your source project so the failing test path
-  maps directly to the code under test
-- Add a `because` argument on critical assertions when the failure reason isn't obvious:
+- Prefer xUnit's built-in `Assert` APIs
+- Name tests with `Subject_Scenario_ExpectedOutcome`
+- Mirror test project structure to source project structure
+- Keep assertions explicit and local to tested behavior
 
 ```csharp
-result.Items.Should().HaveCount(3, because: "three line items were submitted in the request");
+Assert.Equal(new long[] { 1, 2, 2, 4 }, result.Select(x => x.Rank).ToArray());
 ```
 
 ---
 
 ## Decision Guide: Which Layer to Use
 
-| Question | Unit | Integration | E2E |
-|---|---|---|---|
-| Pure logic / algorithm? | ✅ | — | — |
-| Token counting / threshold math? | ✅ | — | — |
-| Strategy selection logic? | ✅ | — | — |
-| Compaction pipeline with a fake LLM client? | — | ✅ | — |
-| Message list wiring / orchestration? | — | ✅ | — |
-| Does compaction fire at the right token threshold against a real model? | — | — | ✅ |
-| Does the agent loop remain coherent after summarization with a real model? | — | — | ✅ |
-| Does the library work end-to-end with a real OpenRouter/Anthropic key? | — | — | ✅ |
+| Question | Unit | Integration |
+|---|---|---|
+| Pure ranking math or normalization logic? | ✅ | - |
+| Attribute discovery or serializer selection logic? | ✅ | - |
+| Lua script result mapping? | ✅ | ✅ |
+| Redis sorted set and hash interaction? | - | ✅ |
+| Dependency injection registration wiring? | - | ✅ |
+| End-to-end package behavior against real Redis? | - | ✅ |
 
-Aim for the [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications):
-the bulk of tests should be integration tests, with a smaller pyramid of unit tests
-for pure logic and a lean set of E2E tests for critical paths.
+Bias toward integration tests for Redisboard.NET public behavior, because core value of
+library lives in Redis interaction, ranking semantics, and serialization boundaries.
+Use unit tests for pure logic, guard clauses, ranking helpers, and mapping code.
 
 ---
 
 ## Test Data Builders
 
-When Arrange blocks grow beyond 5–6 lines, extract a builder that constructs the
-object graph with sensible defaults and lets individual tests override only the values
-they care about. This is especially important for `ConversationContext` and message
-lists, which are the primary inputs across most TokenGuard tests.
+When Arrange blocks grow beyond 5-6 lines, extract builders with sane defaults. This is
+especially useful for leaderboard entities, test key generation, and repeated ranking
+scenarios.
 
 ```csharp
-public class ConversationBuilder
+public sealed class PlayerBuilder
 {
-    private int _maxTokens = 10_000;
-    private double _compactionThreshold = 0.80;
-    private ITokenCounter _counter = new EstimatedTokenCounter();
-    private ICompactionStrategy _strategy = new SlidingWindowStrategy(
-        new SlidingWindowOptions(windowSize: 10));
-    private readonly List<Action<ConversationContext>> _messages = [];
+    private string _id = "player-1";
+    private double _score = 100;
+    private string _username = "alice";
 
-    public ConversationBuilder WithMaxTokens(int max) { _maxTokens = max; return this; }
-    public ConversationBuilder WithThreshold(double t) { _compactionThreshold = t; return this; }
-    public ConversationBuilder WithCounter(ITokenCounter c) { _counter = c; return this; }
-    public ConversationBuilder WithStrategy(ICompactionStrategy s) { _strategy = s; return this; }
+    public PlayerBuilder WithId(string id) { _id = id; return this; }
+    public PlayerBuilder WithScore(double score) { _score = score; return this; }
+    public PlayerBuilder WithUsername(string username) { _username = username; return this; }
 
-    public ConversationBuilder WithUserMessage(string text)
+    public Player Build() => new()
     {
-        _messages.Add(ctx => ctx.AddUserMessage(text));
-        return this;
-    }
-
-    public ConversationBuilder WithToolResult(string callId, string name, string result)
-    {
-        _messages.Add(ctx => ctx.RecordToolResult(callId, name, result));
-        return this;
-    }
-
-    public ConversationContext Build()
-    {
-        var ctx = new ConversationContextBuilder()
-            .WithMaxTokens(_maxTokens)
-            .WithCompactionThreshold(_compactionThreshold)
-            .WithTokenCounter(_counter)
-            .WithStrategy(_strategy)
-            .Build();
-
-        foreach (var addMessage in _messages)
-            addMessage(ctx);
-
-        return ctx;
-    }
+        Id = _id,
+        Score = _score,
+        Username = _username
+    };
 }
 ```
 
-Usage in a test:
+Usage:
 
 ```csharp
 [Fact]
-public void Prepare_WhenOverThreshold_CompactsOldToolResults()
+public async Task GetRangeAsync_WhenScoresTie_AssignsDenseRanksCorrectly()
 {
-    // Arrange — only specify what this test cares about
-    var ctx = new ConversationBuilder()
-        .WithMaxTokens(500)
-        .WithThreshold(0.60)
-        .WithUserMessage("Read file X")
-        .WithToolResult("call-1", "read_file", new string('x', 400))
-        .WithUserMessage("Now fix the bug")
-        .Build();
+    // Arrange
+    var leaderboard = CreateLeaderboard();
+    var players = new[]
+    {
+        new PlayerBuilder().WithId("a").WithScore(100).Build(),
+        new PlayerBuilder().WithId("b").WithScore(80).Build(),
+        new PlayerBuilder().WithId("c").WithScore(80).Build(),
+        new PlayerBuilder().WithId("d").WithScore(40).Build()
+    };
+
+    foreach (var player in players)
+        await leaderboard.AddEntityAsync("season-1", player);
 
     // Act
-    var prepared = ctx.Prepare();
+    var result = await leaderboard.GetRangeAsync("season-1", 0, 3, RankingType.DenseRank);
 
     // Assert
-    prepared.Should().Contain(m =>
-        m.CompactionState == CompactionState.Masked,
-        because: "the old tool result should be masked after threshold exceeded");
+    Assert.Equal(new long[] { 1, 2, 2, 3 }, result.Select(x => x.Rank).ToArray());
 }
 ```
 
-Adapt the builder as the public API evolves. The pattern stays the same: defaults for
-everything, fluent overrides for what matters per test, and a `Build()` that returns
-the SUT ready to act on.
+Pattern stays same: defaults for everything, fluent overrides for relevant values, and
+`Build()` returns test-ready data.
 
 ---
 
 ## Specification Tests (Cross-Implementation Contract Testing)
 
-When multiple classes implement the same interface — like `ICompactionStrategy` — define
-the behavioral contract once as an abstract test base. Each implementation inherits the
-base and plugs in its own factory. This ensures every strategy passes the same contract
-tests and prevents drift between implementations.
-
-This is the pattern the EF Core repo uses for its `Specification.Tests` project: abstract
-base classes define what a correct provider must do, and each provider (SQL Server,
-SQLite, Cosmos) inherits them with its own fixture.
+When multiple implementations must obey same behavioral contract, define abstract test
+base once and let each implementation subclass it. This works well for serializers,
+ranking strategies, or any interchangeable internal abstraction.
 
 ```csharp
-public abstract class CompactionStrategyContractTests
+public abstract class LeaderboardSerializerContractTests
 {
-    protected abstract ICompactionStrategy CreateStrategy();
+    protected abstract ILeaderboardSerializer CreateSerializer();
 
     [Fact]
-    public void Compact_WhenNoMessagesExceedBudget_ReturnsAllOriginal()
+    public void SerializeAndDeserialize_RoundTripsEntity()
     {
         // Arrange
-        var strategy = CreateStrategy();
-        var messages = new ConversationBuilder()
-            .WithMaxTokens(10_000)
-            .WithUserMessage("Hello")
-            .Build();
+        var serializer = CreateSerializer();
+        var entity = new PlayerBuilder().WithId("p1").WithScore(42).Build();
 
         // Act
-        var result = strategy.Compact(messages.Messages, budget: 10_000);
+        var bytes = serializer.Serialize(entity);
+        var result = serializer.Deserialize<Player>(bytes);
 
         // Assert
-        result.Should().OnlyContain(m => m.CompactionState == CompactionState.Original);
-    }
-
-    [Fact]
-    public void Compact_WhenBudgetExceeded_ReducesTotalTokenCount()
-    {
-        var strategy = CreateStrategy();
-        var ctx = new ConversationBuilder()
-            .WithMaxTokens(500)
-            .WithUserMessage("First message")
-            .WithToolResult("c1", "tool", new string('x', 400))
-            .WithUserMessage("Second message")
-            .WithToolResult("c2", "tool", new string('y', 400))
-            .Build();
-        var before = ctx.TokenCount;
-
-        var result = strategy.Compact(ctx.Messages, budget: 500);
-
-        result.Sum(m => m.TokenCount).Should().BeLessThan(before,
-            because: "compaction must reduce total token usage");
-    }
-
-    [Fact]
-    public void Compact_NeverDropsSystemMessage()
-    {
-        var strategy = CreateStrategy();
-        var ctx = new ConversationBuilder()
-            .WithMaxTokens(200)
-            .WithUserMessage("Do something")
-            .WithToolResult("c1", "tool", new string('x', 300))
-            .Build();
-        ctx.SetSystemPrompt("You are helpful.");
-
-        var result = strategy.Compact(ctx.Messages, budget: 200);
-
-        result.Should().Contain(m => m.Role == Role.System,
-            because: "system messages must always survive compaction");
+        Assert.NotNull(result);
+        Assert.Equal(entity.Id, result.Id);
+        Assert.Equal(entity.Score, result.Score);
+        Assert.Equal(entity.Username, result.Username);
     }
 }
 
-// Each strategy implementation inherits and plugs in its factory:
-public class SlidingWindowStrategyContractTests : CompactionStrategyContractTests
+public sealed class MemoryPackLeaderboardSerializerContractTests
+    : LeaderboardSerializerContractTests
 {
-    protected override ICompactionStrategy CreateStrategy()
-        => new SlidingWindowStrategy(new SlidingWindowOptions(windowSize: 5));
-}
-
-public class LlmSummarizationStrategyContractTests : CompactionStrategyContractTests
-{
-    protected override ICompactionStrategy CreateStrategy()
-        => new LlmSummarizationStrategy(new FakeLlmClient(responseTokens: 50));
+    protected override ILeaderboardSerializer CreateSerializer()
+        => new MemoryPackLeaderboardSerializer();
 }
 ```
 
-When adding a new strategy, create a one-line subclass and get the full contract suite
-for free. If a contract test doesn't apply to a specific strategy, override and skip it
-with a clear reason — never silently delete it.
+This prevents drift. New implementation gets full contract suite immediately.
 
 ---
 
 ## Conditional Test Skipping
 
-Some tests depend on runtime conditions: an API key being set, a service being reachable,
-or a specific OS. Use conditional skipping to make these tests self-documenting rather
-than failing with cryptic errors.
-
-xUnit doesn't ship a `[ConditionalFact]` attribute, but you can build one trivially
-with `Skip`:
+Some integration tests depend on runtime conditions such as Redis availability, Docker,
+or platform-specific behavior. Use conditional skipping to make these constraints clear
+instead of failing with unrelated connection errors.
 
 ```csharp
-[Fact(Skip = "Requires OPENROUTER_API_KEY")]  // static skip — always skipped
+[Fact(Skip = "Requires local Redis instance")]
+public Task Leaderboard_WithRealRedis_BehavesCorrectly()
+    => Task.CompletedTask;
 ```
 
-For dynamic skipping based on runtime checks, use the `Skip` property on xUnit v3 or
-a helper that throws `SkipException`:
+For dynamic checks, use helper methods or framework-specific skip support:
 
 ```csharp
 public static class TestEnvironment
 {
-    public static string? OpenRouterApiKey =>
-        Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+    public static string? RedisConnectionString =>
+        Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
 
-    public static bool HasOpenRouterKey => OpenRouterApiKey is not null;
+    public static bool HasRedis => !string.IsNullOrWhiteSpace(RedisConnectionString);
 }
 
-// In xUnit v2: use a custom [ConditionalFact] attribute or check-and-return
-[Trait("Category", "E2E")]
 [Fact]
-public async Task AgentLoop_CompactsAndContinues()
+public async Task AddEntityAsync_WithConfiguredRedis_PersistsValue()
 {
-    if (!TestEnvironment.HasOpenRouterKey)
+    if (!TestEnvironment.HasRedis)
     {
-        // xUnit v2: output a message and return early
-        // xUnit v3: throw new SkipException("...")
         return;
     }
 
-    var client = new OpenRouterClient(TestEnvironment.OpenRouterApiKey!);
-    // ... rest of e2e test
+    using var connection = await ConnectionMultiplexer.ConnectAsync(TestEnvironment.RedisConnectionString!);
+    // ... integration test
 }
 ```
 
 Use conditional skipping for:
 
-- **E2E tests** that need API keys (OpenRouter, Anthropic)
-- **Platform-specific tests** (e.g., token counting behavior on Windows vs Linux due to line endings)
-- **Slow tests** you want to opt-in to locally via an environment flag
+- Redis-dependent integration tests
+- Platform-specific behavior
+- Slow benchmark-like validation that should not run in standard CI
 
-Do not use conditional skipping to hide broken tests. If a test is broken, fix it or
-delete it.
+Do not use skipping to hide broken tests.
 
 ---
 
 ## Shared Fixtures for Expensive Setup
 
-Some test resources are expensive to create — a configured `ConversationContext`, a
-fake LLM client with a large fixture response set, or a pre-built message history. Use
-xUnit's `IClassFixture<T>` to share these across tests in a class without recreating
-them per test.
+Reuse expensive setup with `IClassFixture<T>` when creation cost is real and fixture can
+stay read-only. Good examples: Redis connection multiplexers, seeded test databases, or
+shared serializer fixtures.
 
 ```csharp
-public class LargeConversationFixture
+public sealed class RedisFixture : IAsyncLifetime
 {
-    public ConversationContext Context { get; }
+    public IConnectionMultiplexer ConnectionMultiplexer { get; private set; } = default!;
 
-    public LargeConversationFixture()
+    public async Task InitializeAsync()
     {
-        var builder = new ConversationBuilder()
-            .WithMaxTokens(100_000)
-            .WithStrategy(new SlidingWindowStrategy(
-                new SlidingWindowOptions(windowSize: 20)));
+        ConnectionMultiplexer = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+    }
 
-        // Simulate a 50-turn conversation
-        for (int i = 0; i < 50; i++)
-        {
-            builder.WithUserMessage($"Turn {i}: do something");
-            builder.WithToolResult($"call-{i}", "execute", new string('x', 1500));
-        }
-
-        Context = builder.Build();
+    public async Task DisposeAsync()
+    {
+        await ConnectionMultiplexer.DisposeAsync();
     }
 }
 
-public class SlidingWindowOnLargeHistoryTests : IClassFixture<LargeConversationFixture>
+public sealed class LeaderboardIntegrationTests : IClassFixture<RedisFixture>
 {
-    private readonly LargeConversationFixture _fixture;
+    private readonly RedisFixture _fixture;
 
-    public SlidingWindowOnLargeHistoryTests(LargeConversationFixture fixture)
-        => _fixture = fixture;
-
-    [Fact]
-    public void Prepare_KeepsRecentTurnsIntact()
+    public LeaderboardIntegrationTests(RedisFixture fixture)
     {
-        var prepared = _fixture.Context.Prepare();
-
-        prepared.TakeLast(20).Should().OnlyContain(
-            m => m.CompactionState == CompactionState.Original,
-            because: "the 20 most recent turns are inside the window");
+        _fixture = fixture;
     }
 }
 ```
 
-Rules for fixtures:
+Rules:
 
-- **Read-only tests only.** If a test mutates fixture state, other tests become order-dependent.
-  For tests that mutate, build a fresh instance per test (via the builder).
-- **No collection fixtures for parallelism.** xUnit collection fixtures disable parallel
-  execution for all classes in the collection. Prefer class fixtures unless you genuinely
-  need cross-class sharing.
-- **Lock-and-flag for truly global setup.** If multiple fixtures need to initialize the
-  same singleton (rare in TokenGuard since there's no DB), use the lock pattern:
-
-```csharp
-private static readonly object _lock = new();
-private static bool _initialized;
-
-public MyFixture()
-{
-    lock (_lock)
-    {
-        if (!_initialized)
-        {
-            // one-time expensive setup
-            _initialized = true;
-        }
-    }
-}
-```
+- Use fixtures for read-only shared infrastructure, not shared mutable state
+- Prefer per-test keys over resetting whole Redis instances between tests
+- Keep fixture setup obvious and minimal
 
 ---
 
 ## Separate Mutation from Verification
 
-When a test mutates state and then reads it back to assert, be careful not to assert
-against cached or in-memory state that was never actually committed. This is a general
-principle, not just a database concern.
+After mutating state, verify through public API or independent read path. Do not assert
+against same in-memory object you just wrote.
 
 ```csharp
-// Bad: asserting on the same object reference we just mutated
-ctx.AddUserMessage("new message");
-ctx.Messages.Last().Content.Should().Be("new message"); // trivially true, tests nothing
+// Bad
+var player = new PlayerBuilder().Build();
+await leaderboard.AddEntityAsync("season-1", player);
+Assert.Equal(100, player.Score);
 
-// Good: round-trip through the public API
-ctx.AddUserMessage("new message");
-var prepared = ctx.Prepare(); // the real public surface
-prepared.Last().Segments.OfType<TextContent>().First().Text
-    .Should().Be("new message");
+// Good
+var player = new PlayerBuilder().Build();
+await leaderboard.AddEntityAsync("season-1", player);
+var stored = await leaderboard.GetEntityAsync("season-1", player.Id, RankingType.Default);
+Assert.NotNull(stored);
+Assert.Equal(100, stored.Score);
 ```
 
-The general rule: **never assert on the same object you just wrote to.** Assert on
-what a consumer of the API would actually see — the return value of `Prepare()`, the
-contents of a `CompactionEvent`, or the output of a provider adapter mapping.
+This catches serialization bugs, mapping bugs, and Redis persistence bugs that trivial
+in-memory assertions miss.
 
 ---
 
@@ -486,97 +361,42 @@ contents of a `CompactionEvent`, or the output of a provider adapter mapping.
 
 | Smell | Fix |
 |---|---|
-| Test name is the method name (`SaveOrder_Test`) | Rename to behavior: `Compact_WhenThresholdExceeded_ReducesTokenCount` |
-| 20-line Arrange block | Extract a builder or factory method (`ConversationBuilder`) |
-| `Thread.Sleep` in integration/E2E test | Use `WaitForAsync` / polling / event-driven assertions |
-| Asserting on `mock.Verify` for every call | Assert on outcome state; verify only for side effects with no other observable signal |
-| Tests sharing a static mutable collection | Reset in constructor / `[BeforeEach]`, or use immutable seeds |
-| E2E test asserts on exact LLM output text | Assert structurally: token count dropped, required keys present, no exception thrown |
-| E2E test runs in standard CI | Gate with `[Trait("Category", "E2E")]` and a separate pipeline step |
-| Same strategy contract tested differently per impl | Extract an abstract spec base class; each impl inherits and overrides only the factory |
-| Test silently passes when API key is missing | Use conditional skip so the test shows as "skipped" in reports, not "passed" |
-| Fixture builds expensive state but tests mutate it | Split: read-only tests use the fixture; mutating tests build their own via the builder |
+| Test name is method name | Rename to behavior-based test name |
+| Arrange block is huge | Extract builder or fixture |
+| Test verifies Redis API call count | Assert persisted Redis or public API result instead |
+| Tests share hard-coded Redis keys | Prefix keys with unique test IDs |
+| Ranking test uses random scores | Use fixed values and assert exact ranks |
+| Integration test depends on leftover state | Create and clean isolated keys per test |
+| Same serializer contract copied in multiple files | Extract abstract contract test base |
+| Test silently passes when Redis missing | Skip explicitly so reports stay honest |
 
 ---
 
 ## Framework Quick Reference
 
-### .NET (xUnit + FluentAssertions + NSubstitute)
+### .NET (xUnit + NSubstitute)
 
 ```csharp
-// Fake over mock — encodes behavioral contract, not call count
-var llmClient = new FakeLlmClient(responseTokens: 120);
+var serializer = Substitute.For<ILeaderboardSerializer>();
 
-// Fluent assertion with a reason
-result.Messages.Should().HaveCountLessThan(before,
-    because: "compaction should have reduced the message list");
+Assert.Equal(expected.Id, result.Id);
+Assert.Equal(expected.Score, result.Score);
 
-// Equivalence ignoring non-deterministic fields
-result.Should().BeEquivalentTo(expected, opts => opts
-    .Excluding(x => x.ResponseId)
-    .Excluding(x => x.CreatedAt));
+Assert.Equal(new long[] { 1, 2, 2, 4 }, ranks);
 ```
-
-### Gating E2E Tests (Live LLM API)
-
-E2E tests call real APIs, cost real money, and can be throttled or flaky due to
-network conditions. They must never run in standard CI.
-
-```csharp
-// Mark every E2E test with a trait
-[Trait("Category", "E2E")]
-public class SemanticFoldE2ETests
-{
-    [Fact]
-    public async Task AgentLoop_WhenContextExceedsThreshold_CompactsAndContinues()
-    {
-        // Arrange — real client, real key from environment
-        var apiKey = Environment.GetEnvironmentVariable("OPENROUTER_API_KEY")
-            ?? throw new InvalidOperationException("E2e API key not set.");
-
-        var client = new OpenRouterClient(apiKey);
-        var fold = new SemanticFoldContext(client, new SlidingWindowStrategy(maxTokens: 2000));
-
-        // Act — drive the loop until compaction must occur
-        for (int i = 0; i < 20; i++)
-            await fold.SendAsync($"Message {i}: " + new string('x', 200));
-
-        // Assert structurally — never assert on exact LLM text
-        fold.TokenCount.Should().BeLessThanOrEqualTo(2000,
-            because: "compaction must have fired before this point");
-        fold.Messages.Should().NotBeEmpty(
-            because: "at least a summary message must survive compaction");
-        fold.CompactionCount.Should().BeGreaterThan(0);
-    }
-}
-```
-
-Filter them out of your default CI run and into a dedicated nightly or manual pipeline:
-
-```bash
-# Run everything except E2E
-dotnet test --filter "Category!=E2E"
-
-# Run only E2E (nightly / manual trigger)
-dotnet test --filter "Category=E2E"
-```
-
-Store API keys in CI secrets, never in source. Treat a failing e2e test as a
-signal to investigate — not as a hard build-breaker, since transient API errors
-are outside your control.
 
 ---
 
 ## Checklist Before Submitting Tests
 
 - [ ] Test name describes behavior and expected outcome
-- [ ] AAA structure is clearly identifiable
-- [ ] Only one behavior is tested
-- [ ] No I/O in unit tests; state is owned in integration/E2E tests
-- [ ] Time, randomness, and external calls are controlled
-- [ ] Failure message would be informative without reading the source code
-- [ ] Test passes reliably when run in isolation and in parallel
-- [ ] Contract behaviors are in a shared spec base, not duplicated per implementation
-- [ ] Tests that need external resources skip cleanly when those resources are absent
-- [ ] Builders are used when Arrange exceeds ~5 lines
-- [ ] Assertions verify API output, not the same object that was mutated
+- [ ] AAA structure is obvious
+- [ ] One behavior per test
+- [ ] Unit tests avoid I/O
+- [ ] Integration tests own their Redis state
+- [ ] Time, randomness, and external inputs are controlled
+- [ ] Assertions verify observable behavior, not implementation details
+- [ ] Tests pass in isolation and in parallel
+- [ ] Shared contracts use abstract test bases where useful
+- [ ] Builders are used when Arrange becomes noisy
+- [ ] Redis-dependent tests skip or isolate cleanly when environment requires it

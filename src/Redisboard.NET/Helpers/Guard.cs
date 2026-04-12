@@ -1,4 +1,3 @@
-using Redisboard.NET.Interfaces;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Helpers;
