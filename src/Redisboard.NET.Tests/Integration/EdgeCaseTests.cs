@@ -12,33 +12,40 @@ public class EdgeCaseTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntityAndNeighboursAsync_NonExistentEntity_ReturnsEmpty()
     {
+        // Arrange
         await SeedAsync([("real_player", 100.0)]);
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, "ghost", offset: 5);
 
+        // Assert
         result.Should().BeEmpty();
     }
 
     [Fact]
     public async Task GetEntityRankAsync_NonExistentEntity_ReturnsNull()
     {
+        // Arrange
         await SeedAsync([("real_rank", 100.0)]);
 
+        // Act
         var result = await Leaderboard.GetEntityRankAsync(Key, "nobody");
 
+        // Assert
         result.Should().BeNull();
     }
 
     [Fact]
     public async Task GetEntityAndNeighboursAsync_LastPlacePlayer_OffsetClampedToAvailableEntities()
     {
-        // last_1 has score 1 (lowest), so it is the last-place player.
-        // With offset = 3 it should return last_1 + the 3 players above it = 4 total.
+        // Arrange
         await SeedAsync(Enumerable.Range(1, 10).Select(i => ($"last_{i}", (double)i)));
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, "last_1", offset: 3);
 
-        result.Should().HaveCount(4); // 3 neighbours above + itself
+        // Assert
+        result.Should().HaveCount(4);
         result.Should().Contain(e => e.Id == "last_1");
     }
 }

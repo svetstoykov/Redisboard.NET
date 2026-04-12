@@ -11,10 +11,11 @@ namespace Redisboard.NET.Tests.Integration;
 public class LargeScaleTests : LeaderboardTestBase
 {
     private const int GroupSize = 1_000;
+    private const int DeterministicOffset = 17;
+    private const int DeterministicPlayerCount = 144;
+    private const int DeterministicPlayerIndex = 72;
 
     public LargeScaleTests(LeaderboardFixture fixture) : base(fixture) { }
-
-    // Helpers
 
     private static IEnumerable<(string key, double score)> ThreeGroupPlayers()
     {
@@ -23,16 +24,17 @@ public class LargeScaleTests : LeaderboardTestBase
         for (var i = 0; i < GroupSize; i++) yield return ($"c{i}", 1_000);
     }
 
-    // Three-group (3 x 1 000) ranking correctness
-
     [Fact]
     public async Task LargeDataset_DefaultRanking_GroupRangesAreCorrect()
     {
+        // Arrange
         await SeedBulkAsync(ThreeGroupPlayers());
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "a0", offset: GroupSize + 1, RankingType.Default);
 
+        // Assert
         result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank >= 1 && e.Rank <= GroupSize);
 
@@ -43,11 +45,14 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_DenseRanking_AllGroupsHaveCorrectRank()
     {
+        // Arrange
         await SeedBulkAsync(ThreeGroupPlayers());
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.DenseRank);
 
+        // Assert
         result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == 1);
 
@@ -61,11 +66,14 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_StandardCompetition_AllGroupsHaveCorrectRank()
     {
+        // Arrange
         await SeedBulkAsync(ThreeGroupPlayers());
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.StandardCompetition);
 
+        // Assert
         result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == 1);
 
@@ -79,11 +87,14 @@ public class LargeScaleTests : LeaderboardTestBase
     [Fact]
     public async Task LargeDataset_ModifiedCompetition_AllGroupsHaveCorrectRank()
     {
+        // Arrange
         await SeedBulkAsync(ThreeGroupPlayers());
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, "b0", offset: GroupSize + 1, RankingType.ModifiedCompetition);
 
+        // Assert
         result.Where(e => e.Id.StartsWith("a"))
             .Should().OnlyContain(e => e.Rank == GroupSize);
 
@@ -93,8 +104,6 @@ public class LargeScaleTests : LeaderboardTestBase
         result.Where(e => e.Id.StartsWith("c"))
             .Should().OnlyContain(e => e.Rank == GroupSize * 3);
     }
-
-    // 10 000 unique-score offset arithmetic
 
     [Theory]
     [InlineData(RankingType.Default)]
@@ -107,45 +116,40 @@ public class LargeScaleTests : LeaderboardTestBase
         const int offset = 50;
         const int targetIndex = 5_000;
 
+        // Arrange
         await SeedBulkAsync(
             Enumerable.Range(0, total).Select(i => ($"p10k_{i}", (double)i)),
             batchSize: 1_000);
 
+        // Act
         var result = await Leaderboard.GetEntityAndNeighboursAsync(
             Key, $"p10k_{targetIndex}", offset, rankingType);
 
+        // Assert
         result.Should().HaveCount(offset * 2 + 1);
         result.Should().OnlyContain(r => r.Id.StartsWith("p10k_"));
         result.Should().OnlyContain(r => r.Score > 0);
     }
-
-    // Randomized page-size correctness
 
     [Theory]
     [InlineData(RankingType.Default)]
     [InlineData(RankingType.DenseRank)]
     [InlineData(RankingType.StandardCompetition)]
     [InlineData(RankingType.ModifiedCompetition)]
-    public async Task RandomizedPageSize_MiddlePlayer_CorrectCount(RankingType rankingType)
+    public async Task DeterministicPageSize_MiddlePlayer_ReturnsFullWindow(RankingType rankingType)
     {
-        const int maxPlayersCount = 500;
-        const int minOffset = 10;
-        const int maxOffset = 20;
+        // Arrange
+        await SeedBulkAsync(LeaderboardSeed.Sequence("player", 1, DeterministicPlayerCount));
 
-        var random = new Random();
-        var offset = random.Next(minOffset, maxOffset);
-        // Ensure there is always enough room for a full symmetric window around the target player.
-        var playersCount = random.Next(offset * 2 + 2, maxPlayersCount + 1);
+        // Act
+        var result = await Leaderboard.GetEntityAndNeighboursAsync(
+            Key,
+            $"player{DeterministicPlayerIndex}",
+            DeterministicOffset,
+            rankingType);
 
-        await SeedBulkAsync(
-            Enumerable.Range(0, playersCount).Select(i => ($"player{i}", (double)i)));
-
-        var playerIndex = random.Next(offset + 1, playersCount - offset);
-        var playerKey = $"player{playerIndex}";
-
-        var result = await Leaderboard.GetEntityAndNeighboursAsync(Key, playerKey, offset, rankingType);
-
-        result.Should().HaveCount(offset * 2 + 1);
-        result.Should().OnlyContain(r => r.Score > 0);
+        // Assert
+        result.Should().HaveCount(DeterministicOffset * 2 + 1);
+        result.Should().ContainSingle(player => player.Id == $"player{DeterministicPlayerIndex}");
     }
 }

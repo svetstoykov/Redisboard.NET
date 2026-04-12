@@ -14,10 +14,13 @@ public class ScoreRangeTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_ReturnsEntitiesInRange()
     {
+        // Arrange
         await SeedAsync([("Mike", 200), ("Alex", 100), ("John", 100), ("Sam", 50), ("Jim", 20)]);
 
+        // Act
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 50, 100);
 
+        // Assert
         result.Should().HaveCount(3);
         result.Select(r => r.Id).Should().Contain(["Alex", "John", "Sam"]);
     }
@@ -25,23 +28,23 @@ public class ScoreRangeTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_OutOfRange_ReturnsEmpty()
     {
+        // Arrange
         await SeedAsync([("Mike", 200), ("Alex", 100), ("John", 100), ("Sam", 50), ("Jim", 20)]);
 
+        // Act
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 205, 300);
 
+        // Assert
         result.Should().BeEmpty();
     }
-
-    // Rank verification per ranking type
-    //
-    // Dataset: top1=300, top2=300, mid1=200, mid2=200, low1=100
-    // Query range: [100, 200] → returns mid1, mid2, low1
 
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_AllRankingTypes_CorrectEntitiesReturned()
     {
+        // Arrange
         await SeedAsync([("top1", 300.0), ("top2", 300.0), ("mid1", 200.0), ("mid2", 200.0), ("low1", 100.0)]);
 
+        // Act / Assert
         foreach (var rankingType in Enum.GetValues<RankingType>())
         {
             var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, rankingType);
@@ -55,10 +58,13 @@ public class ScoreRangeTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_DenseRanking_CorrectRanks()
     {
+        // Arrange
         await SeedAsync([("top1", 300.0), ("top2", 300.0), ("mid1", 200.0), ("mid2", 200.0), ("low1", 100.0)]);
 
+        // Act
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.DenseRank);
 
+        // Assert
         result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 2);
 
@@ -68,10 +74,13 @@ public class ScoreRangeTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_StandardCompetition_CorrectRanks()
     {
+        // Arrange
         await SeedAsync([("top1", 300.0), ("top2", 300.0), ("mid1", 200.0), ("mid2", 200.0), ("low1", 100.0)]);
 
+        // Act
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.StandardCompetition);
 
+        // Assert
         result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 3);
 
@@ -81,10 +90,13 @@ public class ScoreRangeTests : LeaderboardTestBase
     [Fact]
     public async Task GetEntitiesByScoreRangeAsync_ModifiedCompetition_CorrectRanks()
     {
+        // Arrange
         await SeedAsync([("top1", 300.0), ("top2", 300.0), ("mid1", 200.0), ("mid2", 200.0), ("low1", 100.0)]);
 
+        // Act
         var result = await Leaderboard.GetEntitiesByScoreRangeAsync(Key, 100, 200, RankingType.ModifiedCompetition);
 
+        // Assert
         result.Where(e => e.Id == "mid1" || e.Id == "mid2")
             .Should().OnlyContain(e => e.Rank == 4);
 

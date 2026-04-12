@@ -15,6 +15,7 @@ public class MetadataTests : LeaderboardTestBase
     [Fact]
     public async Task AddEntityAsync_WithDomainProperties_PropertiesAreRetrievable()
     {
+        // Arrange
         var player = new Player
         {
             Id = Guid.NewGuid().ToString(),
@@ -25,11 +26,12 @@ public class MetadataTests : LeaderboardTestBase
             EntryDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc)
         };
 
+        // Act
         await Leaderboard.AddEntityAsync(Key, player);
-
         var results = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 1);
         var stored = results.Single();
 
+        // Assert
         stored.Username.Should().Be(player.Username);
         stored.FirstName.Should().Be(player.FirstName);
         stored.LastName.Should().Be(player.LastName);
@@ -39,6 +41,7 @@ public class MetadataTests : LeaderboardTestBase
     [Fact]
     public async Task UpdateEntityMetadataAsync_ReflectsNewDomainProperties()
     {
+        // Arrange
         var player = new Player
         {
             Id = Guid.NewGuid().ToString(),
@@ -50,15 +53,15 @@ public class MetadataTests : LeaderboardTestBase
         };
 
         await Leaderboard.AddEntityAsync(Key, player);
-
         player.Username = "updated";
         player.FirstName = "Jane";
 
-        await Leaderboard.UpdateEntityMetadataAsync(Key, player);
+        // Act
+        var stored = await RoundTripAsync(
+            mutate: () => Leaderboard.UpdateEntityMetadataAsync(Key, player),
+            observe: async () => (await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 1)).Single());
 
-        var results = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 1);
-        var stored = results.Single();
-
+        // Assert
         stored.Username.Should().Be("updated");
         stored.FirstName.Should().Be("Jane");
     }
@@ -68,21 +71,13 @@ public class MetadataTests : LeaderboardTestBase
     {
         const int count = 100;
 
-        var sem = new SemaphoreSlim(50);
-        var tasks = Enumerable.Range(0, count).Select(async i =>
-        {
-            await sem.WaitAsync();
-            try
-            {
-                var p = new Player { Id = $"sz_{i}", Score = i, Username = $"user_{i}" };
-                await Leaderboard.AddEntityAsync(Key, p);
-            }
-            finally { sem.Release(); }
-        });
-        await Task.WhenAll(tasks);
+        // Arrange
+        await SeedAsync(Enumerable.Range(0, count).Select(index => ($"sz_{index}", (double)index)));
 
+        // Act
         var size = await Leaderboard.GetSizeAsync(Key);
 
+        // Assert
         size.Should().Be(count);
     }
 
@@ -91,22 +86,21 @@ public class MetadataTests : LeaderboardTestBase
     {
         const int count = 10;
 
-        for (var i = 0; i < count; i++)
-        {
-            var p = new Player { Id = $"szdel_{i}", Score = i, Username = $"u{i}" };
-            await Leaderboard.AddEntityAsync(Key, p);
-        }
+        // Arrange
+        await SeedAsync(Enumerable.Range(0, count).Select(index => ($"szdel_{index}", (double)index)));
 
+        // Act
         await Leaderboard.DeleteEntityAsync(Key, "szdel_0");
-
         var size = await Leaderboard.GetSizeAsync(Key);
 
+        // Assert
         size.Should().Be(count - 1);
     }
 
     [Fact]
     public async Task AddEntitiesAsync_BatchAdd_PersistsScoresAndMetadataForAllEntities()
     {
+        // Arrange
         var players = new[]
         {
             new Player { Id = "batch_meta_1", Score = 350, Username = "u1", FirstName = "Ada", LastName = "Lovelace", EntryDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
@@ -114,11 +108,12 @@ public class MetadataTests : LeaderboardTestBase
             new Player { Id = "batch_meta_3", Score = 120, Username = "u3", FirstName = "Alan", LastName = "Turing", EntryDate = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc) }
         };
 
+        // Act
         await Leaderboard.AddEntitiesAsync(Key, players);
-
         var board = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, players.Length);
         var byId = board.ToDictionary(p => p.Id);
 
+        // Assert
         foreach (var expected in players)
         {
             byId.Should().ContainKey(expected.Id);

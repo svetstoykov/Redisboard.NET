@@ -68,6 +68,12 @@ public abstract class LeaderboardTestBase : IClassFixture<LeaderboardFixture>, I
         }
     }
 
+    protected static async Task<T> RoundTripAsync<T>(Func<Task> mutate, Func<Task<T>> observe)
+    {
+        await mutate();
+        return await observe();
+    }
+
     public void Dispose()
     {
         Leaderboard.DeleteAsync(Key).GetAwaiter().GetResult();
