@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Redisboard.NET)](https://www.nuget.org/packages/Redisboard.NET/)
-[![Downloads](https://img.shields.io/nuget/dt/Redisboard.NET?include_prereleases)](https://www.nuget.org/packages/Redisboard.NET/)
 [![License](https://img.shields.io/github/license/svetstoykov/Redisboard.NET)](https://github.com/svetstoykov/Redisboard.NET/blob/main/LICENSE)
 
 ### A high-performance .NET Library for creating and interacting with Leaderboards using Redis.
@@ -81,16 +80,62 @@ Rank  Player   Points
 5     Nina     80
 ```
 
+
+### **Dependency Injection**
+Register the Leaderboard in your `IServiceCollection` using the built-in extension method:
+
+`AddLeaderboard` also registers an `IConnectionMultiplexer` internally when you provide a config delegate and no existing Redis services are already registered. The `cfg` object is StackExchange.Redis `ConfigurationOptions`, so any supported connection settings can be configured there.
+
+```cs
+// Add to IServiceCollection
+builder.Services.AddLeaderboard<Player>(cfg =>
+{
+    cfg.EndPoints.Add("localhost:6379");
+    cfg.ClientName = "Development";
+    cfg.DefaultDatabase = 0;
+});
+```
+
+*\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+
+See StackExchange.Redis configuration docs for more `ConfigurationOptions` settings: [Basics](https://stackexchange.github.io/StackExchange.Redis/Basics.html) and [Configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html).
+
+Once registered, inject `ILeaderboard<Player>` via the constructor:
+
+``` cs
+public class MyService
+{
+    private readonly ILeaderboard<Player> _leaderboard;
+
+    public MyService(ILeaderboard<Player> leaderboard)
+    {
+        _leaderboard = leaderboard;
+    }
+    
+    public async Task AddPlayersAsync(Player[] players)
+    {
+        const string leaderboardKey = "your_leaderboard_key"
+
+        foreach (var player in players)
+            await _leaderboard.AddEntityAsync(leaderboardKey, player);
+    }
+}
+```
+
 Other common APIs:
 
 ```cs
 // Add many players in one batch operation.
 await leaderboard.AddEntitiesAsync(leaderboardKey, players);
 
-// Update only score for an existing player.
+// Update only score for an existing player with model
 await leaderboard.UpdateEntityScoreAsync(
     leaderboardKey,
     new Player { Id = "player1", Score = 175 });
+
+// Update only score for an existing player by key and score
+await leaderboard.UpdateEntityScoreAsync(
+    leaderboardKey, entityKey: "player1", score: 175);;
 
 // Update metadata without changing rank or score.
 await leaderboard.UpdateEntityMetadataAsync(
@@ -187,47 +232,6 @@ builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, new SystemTextJson
 // Or via manually created object
 
 var leaderboard = new Leaderboard<Player>(redis, new SystemTextJsonSerializer());
-```
-
-### **Dependency Injection** 
-Register the Leaderboard in your `IServiceCollection` using the built-in extension method:
-
-`AddLeaderboard` also registers an `IConnectionMultiplexer` internally when you provide a config delegate and no existing Redis services are already registered. The `cfg` object is StackExchange.Redis `ConfigurationOptions`, so any supported connection settings can be configured there.
-
-```cs
-// Add to IServiceCollection
-builder.Services.AddLeaderboard<Player>(cfg =>
-{
-    cfg.EndPoints.Add("localhost:6379");
-    cfg.ClientName = "Development";
-    cfg.DefaultDatabase = 0;
-});
-```
-
-*\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
-
-See StackExchange.Redis configuration docs for more `ConfigurationOptions` settings: [Basics](https://stackexchange.github.io/StackExchange.Redis/Basics.html) and [Configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html).
-
-Once registered, inject `ILeaderboard<Player>` via the constructor:
-
-``` cs
-public class MyService
-{
-    private readonly ILeaderboard<Player> _leaderboard;
-
-    public MyService(ILeaderboard<Player> leaderboard)
-    {
-        _leaderboard = leaderboard;
-    }
-    
-    public async Task AddPlayersAsync(Player[] players)
-    {
-        const string leaderboardKey = "your_leaderboard_key"
-
-        foreach (var player in players)
-            await _leaderboard.AddEntityAsync(leaderboardKey, player);
-    }
-}
 ```
 
 ### DemoAPI

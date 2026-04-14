@@ -98,4 +98,37 @@ public class ScoreTests : LeaderboardTestBase
         result.First(e => e.Id == "sb").Score.Should().BeApproximately(500.25, 1e-5);
         result.First(e => e.Id == "sc").Score.Should().BeApproximately(1.0, 1e-5);
     }
+
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_ReturnsUpdatedScore()
+    {
+        // Arrange
+        await SeedAsync([("Mike", 200), ("Alex", 100), ("John", 100), ("Sam", 50)]);
+
+        // Act
+        var result = await RoundTripAsync(
+            mutate: () => Leaderboard.UpdateEntityScoreAsync(Key, "John", 150),
+            observe: () => Leaderboard.GetEntityScoreAsync(Key, "John"));
+
+        // Assert
+        result.Should().Be(150);
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_MultipleUpdates_FinalScoreAndRankAreCorrect()
+    {
+        // Arrange
+        await SeedAsync([("evolve", 10.0), ("comp_a", 50.0), ("comp_b", 30.0), ("comp_c", 20.0)]);
+
+        // Act
+        await Leaderboard.UpdateEntityScoreAsync(Key, "evolve", 40);
+        await Leaderboard.UpdateEntityScoreAsync(Key, "evolve", 100);
+
+        // Assert
+        var score = await Leaderboard.GetEntityScoreAsync(Key, "evolve");
+        var rank = await Leaderboard.GetEntityRankAsync(Key, "evolve");
+
+        score.Should().Be(100);
+        rank.Should().Be(1);
+    }
 }

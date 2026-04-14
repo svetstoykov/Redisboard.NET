@@ -220,7 +220,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or replacement score is negative.</exception>
-    public async Task UpdateEntityScoreAsync(
+    public Task UpdateEntityScoreAsync(
         RedisValue leaderboardKey,
         TEntity entity,
         bool fireAndForget = false,
@@ -234,21 +234,36 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var newScore = EntityTypeAccessor<TEntity>.GetScore(entity);
         Guard.AgainstInvalidScore(newScore);
 
-        var invertedScore = -newScore;
+        return this.InternalUpdateEntityScoreAsync(leaderboardKey, entityKey, newScore, fireAndForget, cancellationToken);
+    }
 
-        var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
+    /// <summary>
+    /// Updates the score of an existing entity without rewriting its metadata.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
+    /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
+    /// <param name="score">Replacement score. Cannot be negative.</param>
+    /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
+    /// <remarks>
+    /// This method updates ranking state only. Stored metadata remains unchanged until
+    /// <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/> runs.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or <paramref name="entityKey"/> is missing.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="entityKey"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityKey"/> is non-positive or <paramref name="score"/> is negative.</exception>
+    public Task UpdateEntityScoreAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
+        Guard.AgainstInvalidScore(score);
 
-        var script = LeaderboardScript.ForUpdateEntityScore().ExecutableScript;
-
-        var keys = new[]
-        {
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
-        };
-
-        var args = new[] { entityKey, invertedScore };
-
-        await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
+        return this.InternalUpdateEntityScoreAsync(leaderboardKey, entityKey, score, fireAndForget, cancellationToken);
     }
 
     /// <summary>
@@ -582,7 +597,32 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         await this._redis.KeyDeleteAsync(keys);
     }
+    
+    private async Task InternalUpdateEntityScoreAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        bool fireAndForget,
+        CancellationToken cancellationToken)
+    {
+        var invertedScore = -score;
 
+        var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
+
+        var script = LeaderboardScript.ForUpdateEntityScore().ExecutableScript;
+
+        var keys = new[]
+        {
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+        };
+
+        var args = new[] { entityKey, invertedScore };
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
+    }
+    
     private async Task<TEntity[]> GetLeaderboardAsync(
         RedisValue leaderboardKey, long startIndex, int pageSize, RankingType rankingType,
         CancellationToken cancellationToken = default)

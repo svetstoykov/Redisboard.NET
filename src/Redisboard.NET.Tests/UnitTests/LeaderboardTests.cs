@@ -151,6 +151,68 @@ public class LeaderboardTests
     }
 
     [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_UpdatesScore()
+    {
+        var entityKey = "player_1";
+        var score = 150.0;
+        var invertedScore = -score;
+
+        _mockRedis.Setup(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.IsAny<RedisKey[]>(),
+                It.IsAny<RedisValue[]>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(RedisResult.Create(Array.Empty<RedisValue>()))
+            .Verifiable();
+
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, entityKey, score);
+
+        _mockRedis.Verify();
+
+        _mockRedis.Verify(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.Is<RedisKey[]>(keys =>
+                    keys.Length == 2 &&
+                    keys[0] == _sortedSetKey &&
+                    keys[1] == _uniqueSortedSetKey),
+                It.Is<RedisValue[]>(args =>
+                    args.Length == 2 &&
+                    args[0] == entityKey &&
+                    args[1] == invertedScore),
+                CommandFlags.None),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    {
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.UpdateEntityScoreAsync(default, "player_1", 100.0));
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_WithInvalidEntityKey_ThrowsArgumentNullException()
+    {
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, default(string), 100.0));
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_WithNegativeScore_ThrowsArgumentOutOfRangeException()
+    {
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, "player_1", -100.0));
+    }
+
+    [Fact]
     public async Task UpdateEntityMetadataAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
         var entity = Player.New();

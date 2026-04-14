@@ -78,6 +78,25 @@ public interface ILeaderboard<TEntity>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates the score of an existing entity without rewriting its metadata.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
+    /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
+    /// <param name="score">Replacement score. Cannot be negative.</param>
+    /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
+    /// <remarks>
+    /// Call <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/>
+    /// separately when non-score properties must also be persisted.
+    /// </remarks>
+    Task UpdateEntityScoreAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Replaces the stored metadata for an existing entity without changing its score.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
