@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/svetstoykov/Redisboard.NET/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Redisboard.NET)](https://www.nuget.org/packages/Redisboard.NET/)
-[![Downloads](https://img.shields.io/nuget/dt/Redisboard.NET)](https://www.nuget.org/packages/Redisboard.NET/)
+[![Downloads](https://img.shields.io/nuget/dt/Redisboard.NET?style=flat)](https://www.nuget.org/packages/Redisboard.NET/)
 [![License](https://img.shields.io/github/license/svetstoykov/Redisboard.NET)](https://github.com/svetstoykov/Redisboard.NET/blob/main/LICENSE)
 
 ### A high-performance .NET Library for creating and interacting with Leaderboards using Redis.
