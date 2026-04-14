@@ -95,7 +95,7 @@ await leaderboard.UpdateEntityScoreAsync(
 // Update metadata without changing rank or score.
 await leaderboard.UpdateEntityMetadataAsync(
     leaderboardKey,
-    new Player { Id = "player1", Score = 175, Username = "Alice", AvatarUrl = "avatar.png" });
+    new Player { Id = "player1", Username = "Alice", AvatarUrl = "avatar.png" });
 
 // Get players between rank 1 and rank 10.
 var topTen = await leaderboard.GetEntitiesByRankRangeAsync(
