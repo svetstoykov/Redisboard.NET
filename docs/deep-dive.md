@@ -44,6 +44,26 @@ ZRANGE leaderboard 0 -1 WITHSCORES
 ZRANK leaderboard "alice"  # Returns 1 (second from bottom)
 ```
 
+### Under the Hood — Skip Lists
+
+You might wonder: how does Redis keep things sorted so fast? The answer is a data structure called a **skip list**.
+
+A skip list is a layered linked list. The bottom layer holds every element in sorted order. Each layer above is a "fast lane" that skips over more and more elements — like express vs. local subway lines. To find an element, you start at the top (fewest stops) and drop down a level whenever you overshoot.
+
+```
+Level 3:  [HEAD] ────────────────────────────────────────── [3800] ──── [END]
+Level 2:  [HEAD] ──────────────── [1500] ─────────────────  [3800] ──── [END]
+Level 1:  [HEAD] ──── [900] ───── [1500] ──── [2200] ─────  [3800] ──── [END]
+Level 0:  [HEAD] ─── [900] ─ [1100] ─ [1500] ─ [1900] ─ [2200] ─ [3000] ─ [3800] ─ [END]
+           (base layer — every element, fully sorted)
+```
+
+A search for `3000` walks the express lanes first, skipping large chunks, then narrows in on the base layer — touching only a handful of nodes instead of scanning the whole list. This gives `O(log N)` for inserts, deletes, and rank lookups, no matter how many members are in the set.
+
+This is exactly why sorted sets scale so well: a leaderboard with 500,000 players needs roughly 19 comparisons (`log₂ 500,000 ≈ 18.9`) to locate any member. A linear scan would need up to 500,000.
+
+> For a deeper look at how Redis implements sorted sets internally, [this post](https://jothipn.github.io/2023/04/07/redis-sorted-set.html) walks through the skip list structure with great diagrams.
+
 One catch: Redis sorts in **ascending** order by default. For a leaderboard, you want the *highest* score at the top. The common trick — and the one Redisboard.NET uses — is to **negate the scores** before storing them. A score of `4200` is stored as `-4200`. Now the highest real score has the lowest stored value, so it naturally appears first in ascending order.
 
 ```csharp
