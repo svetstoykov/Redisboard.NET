@@ -8,6 +8,9 @@
 
 Redisboard.NET is an optimized .NET library designed to handle leaderboards efficiently using Redis. It provides a simple, yet powerful API to create and manage leaderboards with various ranking systems. The library leverages Redis sorted sets for performance and uses LUA scripts for advanced querying capabilities.
 
+> **Want to understand how it works under the hood?**
+> Read the [Architecture Deep Dive](docs/deep-dive.md) — covering the three-structure Redis design, score negation, Lua atomicity, ranking algorithms, serialization, and common pitfalls. A good starting point whether you're evaluating the library or contributing to it.
+
 ## Quick Start
 First up, let's get a Redis server ready. Docker makes this super easy.
 
