@@ -36,7 +36,8 @@ public class LeaderboardFixture : IDisposable
         [
             CacheKey.ForLeaderboardSortedSet(LeaderboardKey),
             CacheKey.ForEntityDataHashSet(LeaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(LeaderboardKey)
+            CacheKey.ForUniqueScoreSortedSet(LeaderboardKey),
+            CacheKey.ForEntityVersionHashSet(LeaderboardKey)
         ];
 
         RedisDatabase.KeyDelete(keys);

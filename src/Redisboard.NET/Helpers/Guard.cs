@@ -131,4 +131,15 @@ internal static class Guard
         if (metadata.IsNull ||!metadata.HasValue || metadata == default)
             throw new ArgumentNullException(nameof(metadata), "Metadata cannot be null or empty.");
     }
+
+    /// <summary>
+    /// Ensures a concurrency version is not negative.
+    /// </summary>
+    /// <param name="version">The version to validate.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when version is negative.</exception>
+    public static void AgainstInvalidVersion(long version)
+    {
+        if (version < 0)
+            throw new ArgumentOutOfRangeException(nameof(version), "Version cannot be negative.");
+    }
 }

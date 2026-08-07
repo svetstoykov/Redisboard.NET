@@ -1,6 +1,7 @@
 local leaderboardKey = KEYS[1]
 local uniqueScoreKey = KEYS[2]
 local metadataKey = KEYS[3]
+local versionHashKey = KEYS[4]
 
 for i = 1, #ARGV, 3 do
   local entityKey = ARGV[i]
@@ -10,6 +11,7 @@ for i = 1, #ARGV, 3 do
   redis.call('ZADD', leaderboardKey, invertedScore, entityKey)
   redis.call('ZADD', uniqueScoreKey, invertedScore, tostring(invertedScore))
   redis.call('HSET', metadataKey, entityKey, metadata)
+  redis.call('HSETNX', versionHashKey, entityKey, 1)
 end
 
 return 1

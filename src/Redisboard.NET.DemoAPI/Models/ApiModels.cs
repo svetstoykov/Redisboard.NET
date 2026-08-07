@@ -15,6 +15,12 @@ public class UpdateScoreRequest
     public double NewScore { get; set; }
 }
 
+public class UpdateScoreWithVersionRequest
+{
+    public double NewScore { get; set; }
+    public long ExpectedVersion { get; set; }
+}
+
 public class EntityResponse
 {
     public string Key { get; set; }

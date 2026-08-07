@@ -62,6 +62,10 @@
         <EmbeddedResource Include="Scripts\delete_entities_batch.lua">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </EmbeddedResource>
+        <None Remove="Scripts\update_entity_score_with_version.lua" />
+        <EmbeddedResource Include="Scripts\update_entity_score_with_version.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
     </ItemGroup>
 
 </Project>

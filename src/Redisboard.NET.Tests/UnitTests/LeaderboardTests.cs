@@ -1,6 +1,8 @@
 using System.Text.Json;
+using FluentAssertions;
 using Moq;
 using Redisboard.NET.Common.Models;
+using Redisboard.NET.Exceptions;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Serialization;
 using StackExchange.Redis;
@@ -14,6 +16,7 @@ public class LeaderboardTests
     private readonly string _sortedSetKey = CacheKey.ForLeaderboardSortedSet(LeaderboardKey);
     private readonly string _hashSetKey = CacheKey.ForEntityDataHashSet(LeaderboardKey);
     private readonly string _uniqueSortedSetKey = CacheKey.ForUniqueScoreSortedSet(LeaderboardKey);
+    private readonly string _versionHashSetKey = CacheKey.ForEntityVersionHashSet(LeaderboardKey);
 
     private readonly Mock<IDatabase> _mockRedis = new();
     private readonly Random _random = new();
@@ -52,10 +55,11 @@ public class LeaderboardTests
         _mockRedis.Verify(db => db.ScriptEvaluateAsync(
                 It.IsAny<string>(),
                 It.Is<RedisKey[]>(keys =>
-                    keys.Length == 3 &&
+                    keys.Length == 4 &&
                     keys[0] == _sortedSetKey &&
                     keys[1] == _uniqueSortedSetKey &&
-                    keys[2] == _hashSetKey),
+                    keys[2] == _hashSetKey &&
+                    keys[3] == _versionHashSetKey),
                 It.Is<RedisValue[]>(args =>
                     args.Length == 3 &&
                     args[0] == entity.Id &&
@@ -397,10 +401,11 @@ public class LeaderboardTests
         _mockRedis.Verify(db => db.ScriptEvaluateAsync(
                 It.IsAny<string>(),
                 It.Is<RedisKey[]>(keys =>
-                    keys.Length == 3 &&
+                    keys.Length == 4 &&
                     keys[0] == _sortedSetKey &&
                     keys[1] == _uniqueSortedSetKey &&
-                    keys[2] == _hashSetKey),
+                    keys[2] == _hashSetKey &&
+                    keys[3] == _versionHashSetKey),
                 It.Is<RedisValue[]>(args => args.Length == 1 && args[0] == entity.Id),
                 CommandFlags.None),
             Times.Once);
@@ -500,7 +505,8 @@ public class LeaderboardTests
         {
             _sortedSetKey,
             _hashSetKey,
-            _uniqueSortedSetKey
+            _uniqueSortedSetKey,
+            _versionHashSetKey
         };
 
         _mockRedis.Setup(db => db.KeyDeleteAsync(It.IsAny<RedisKey[]>(), CommandFlags.None))
@@ -592,5 +598,104 @@ public class LeaderboardTests
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             async () => await leaderboard.GetEntitiesByRankRangeAsync(LeaderboardKey, 1, 10, cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreWithVersionAsync_WithMatchingVersion_Succeeds()
+    {
+        var entity = Player.New();
+        entity.Score = 100;
+        entity.Version = 3;
+        var invertedScore = -entity.Score;
+
+        _mockRedis.Setup(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.IsAny<RedisKey[]>(),
+                It.IsAny<RedisValue[]>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(RedisResult.Create(new RedisValue[] { 1, 4 }))
+            .Verifiable();
+
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await leaderboard.UpdateEntityScoreWithVersionAsync(LeaderboardKey, entity);
+
+        _mockRedis.Verify();
+        entity.Version.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreWithVersionAsync_WithMismatchedVersion_ThrowsConcurrencyException()
+    {
+        var entity = Player.New();
+        entity.Score = 100;
+        entity.Version = 3;
+
+        _mockRedis.Setup(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.IsAny<RedisKey[]>(),
+                It.IsAny<RedisValue[]>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(RedisResult.Create(new RedisValue[] { -1, 7 }));
+
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        var ex = await Assert.ThrowsAsync<ConcurrencyException>(
+            async () => await leaderboard.UpdateEntityScoreWithVersionAsync(LeaderboardKey, entity));
+
+        ex.ExpectedVersion.Should().Be(3);
+        ex.ActualVersion.Should().Be(7);
+        ex.EntityKey.Should().Be((RedisValue)entity.Id);
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreWithVersionAsync_WithNegativeExpectedVersion_ThrowsArgumentOutOfRangeException()
+    {
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            async () => await leaderboard.UpdateEntityScoreWithVersionAsync(LeaderboardKey, "player_1", 100.0, -1));
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreWithVersionAsync_WithExplicitKeyAndScore_Succeeds()
+    {
+        _mockRedis.Setup(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.IsAny<RedisKey[]>(),
+                It.IsAny<RedisValue[]>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(RedisResult.Create(new RedisValue[] { 1, 5 }));
+
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        var newVersion = await leaderboard.UpdateEntityScoreWithVersionAsync(LeaderboardKey, "p1", 200.0, 2);
+
+        newVersion.Should().Be(5);
+
+        _mockRedis.Verify(db => db.ScriptEvaluateAsync(
+                It.IsAny<string>(),
+                It.Is<RedisKey[]>(keys =>
+                    keys.Length == 3 &&
+                    keys[0] == _sortedSetKey &&
+                    keys[1] == _uniqueSortedSetKey &&
+                    keys[2] == _versionHashSetKey),
+                It.Is<RedisValue[]>(args =>
+                    args.Length == 3 &&
+                    args[0] == "p1" &&
+                    args[1] == (RedisValue)(-200.0) &&
+                    args[2] == (RedisValue)2),
+                CommandFlags.None),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateEntityScoreWithVersionAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
+    {
+        var entity = Player.New();
+        var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await leaderboard.UpdateEntityScoreWithVersionAsync(default, entity));
     }
 }

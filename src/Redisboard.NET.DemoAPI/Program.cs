@@ -2,6 +2,7 @@ using Redisboard.NET.Common.Helpers;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.DemoAPI.Models;
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Exceptions;
 using Redisboard.NET.Extensions;
 using Redisboard.NET.Interfaces;
 
@@ -91,6 +92,18 @@ app.MapPut("/leaderboards/{leaderboardId}/players/{id}/score", async (
 
     await leaderboard.UpdateEntityScoreAsync(leaderboardId, player);
     return Results.Ok(new { Message = "Score updated successfully" });
+});
+
+// Update score with optimistic concurrency
+app.MapPut("/leaderboards/{leaderboardId}/players/{id}/score/with-version", async (
+        ILeaderboard<Player> leaderboard,
+        string leaderboardId,
+        string id,
+        UpdateScoreWithVersionRequest request) =>
+{
+    var newVersion = await leaderboard.UpdateEntityScoreWithVersionAsync(
+        leaderboardId, id, request.NewScore, request.ExpectedVersion);
+    return Results.Ok(new { Message = "Score updated with concurrency control", NewVersion = newVersion });
 });
 
 // Get score

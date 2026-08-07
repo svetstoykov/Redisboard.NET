@@ -30,4 +30,12 @@ internal static class CacheKey
     /// <returns>A Redis key for the unique scores sorted set.</returns>
     public static RedisKey ForUniqueScoreSortedSet(RedisValue leaderboardKey)
         => new($"sorted_set_unique_score_{leaderboardKey}");
+
+    /// <summary>
+    /// Generates the hash key for storing entity concurrency versions.
+    /// </summary>
+    /// <param name="leaderboardKey">The leaderboard identifier.</param>
+    /// <returns>A Redis key for the entity version hash set.</returns>
+    public static RedisKey ForEntityVersionHashSet(RedisValue leaderboardKey)
+        => new($"entity_version_hashset_leaderboard_{leaderboardKey}");
 }

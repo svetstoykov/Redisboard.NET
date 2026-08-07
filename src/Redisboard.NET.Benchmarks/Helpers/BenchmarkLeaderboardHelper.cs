@@ -32,5 +32,6 @@ internal static class BenchmarkLeaderboardHelper
         db.KeyDelete(CacheKey.ForEntityDataHashSet(Settings.LeaderboardKey()));
         db.KeyDelete(CacheKey.ForUniqueScoreSortedSet(Settings.LeaderboardKey()));
         db.KeyDelete(CacheKey.ForLeaderboardSortedSet(Settings.LeaderboardKey()));
+        db.KeyDelete(CacheKey.ForEntityVersionHashSet(Settings.LeaderboardKey()));
     }
 }

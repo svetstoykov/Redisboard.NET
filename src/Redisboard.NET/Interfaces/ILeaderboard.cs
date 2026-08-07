@@ -78,6 +78,59 @@ public interface ILeaderboard<TEntity>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates entity score with optimistic concurrency control using entity's version property.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
+    /// <param name="entity">Entity whose configured key identifies stored member, score property holds replacement score, and version property holds expected version.</param>
+    /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion. Version check still runs server-side.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
+    /// <remarks>
+    /// <para>
+    /// Reads the expected version from the entity property marked with <see cref="Attributes.LeaderboardVersionAttribute"/>.
+    /// The update only succeeds when the stored version in Redis matches that expected version.
+    /// On success the version is atomically incremented both in Redis and on the returned entity.
+    /// </para>
+    /// <para>
+    /// Throws <see cref="Exceptions.ConcurrencyException"/> when the version in Redis does not match
+    /// the expected version carried by <paramref name="entity"/>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="Exceptions.ConcurrencyException">Thrown when the entity's version does not match the Redis-stored version.</exception>
+    Task UpdateEntityScoreWithVersionAsync(
+        RedisValue leaderboardKey,
+        TEntity entity,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates entity score by key with optimistic concurrency control using an explicit expected version.
+    /// </summary>
+    /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
+    /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
+    /// <param name="score">Replacement score. Cannot be negative.</param>
+    /// <param name="expectedVersion">Version the caller expects to find for this entity. The update only succeeds when the stored version matches.</param>
+    /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion. Version check still runs server-side.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
+    /// <remarks>
+    /// <para>
+    /// Unlike <see cref="UpdateEntityScoreWithVersionAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/>,
+    /// this overload accepts an explicit expected version rather than reading it from an entity attribute.
+    /// </para>
+    /// <para>
+    /// On success the version is atomically incremented in Redis.
+    /// </para>
+    /// </remarks>
+    /// <returns>The new version after successful update.</returns>
+    /// <exception cref="Exceptions.ConcurrencyException">Thrown when the expected version does not match the Redis-stored version.</exception>
+    Task<long> UpdateEntityScoreWithVersionAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        long expectedVersion,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Updates the score of an existing entity without rewriting its metadata.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>

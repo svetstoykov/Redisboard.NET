@@ -21,6 +21,10 @@ public partial class Player : ILeaderboardEntity
     /// <inheritdoc />
     public long Rank { get; set; }
 
+    /// <summary>Optimistic concurrency version incremented on each versioned score update.</summary>
+    [LeaderboardVersion]
+    public long Version { get; set; }
+
     public string Username { get; set; }
 
     public string FirstName { get; set; }

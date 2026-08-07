@@ -1,4 +1,5 @@
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Exceptions;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.Models;
@@ -124,7 +125,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
         ];
 
         RedisValue[] args = [entityKey, invertedScore, metadata];
@@ -196,7 +198,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
         ];
 
         var script = LeaderboardScript.ForAddEntitiesBatch().ExecutableScript;
@@ -264,6 +267,48 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidScore(score);
 
         return this.InternalUpdateEntityScoreAsync(leaderboardKey, entityKey, score, fireAndForget, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateEntityScoreWithVersionAsync(
+        RedisValue leaderboardKey,
+        TEntity entity,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+
+        var entityKey = EntityTypeAccessor<TEntity>.GetKey(entity);
+        Guard.AgainstInvalidIdentityKey(entityKey);
+
+        var newScore = EntityTypeAccessor<TEntity>.GetScore(entity);
+        Guard.AgainstInvalidScore(newScore);
+
+        var expectedVersion = EntityTypeAccessor<TEntity>.GetVersion(entity);
+        Guard.AgainstInvalidVersion(expectedVersion);
+
+        var newVersion = await this.InternalUpdateEntityScoreWithVersionAsync(
+            leaderboardKey, entityKey, newScore, expectedVersion, fireAndForget, cancellationToken);
+
+        EntityTypeAccessor<TEntity>.SetVersion(entity, newVersion);
+    }
+
+    /// <inheritdoc />
+    public async Task<long> UpdateEntityScoreWithVersionAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        long expectedVersion,
+        bool fireAndForget = false,
+        CancellationToken cancellationToken = default)
+    {
+        Guard.AgainstInvalidIdentityKey(leaderboardKey);
+        Guard.AgainstInvalidIdentityKey(entityKey);
+        Guard.AgainstInvalidScore(score);
+        Guard.AgainstInvalidVersion(expectedVersion);
+
+        return await this.InternalUpdateEntityScoreWithVersionAsync(
+            leaderboardKey, entityKey, score, expectedVersion, fireAndForget, cancellationToken);
     }
 
     /// <summary>
@@ -518,7 +563,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
         ];
 
         RedisValue[] args = [entityKey];
@@ -564,7 +610,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForEntityDataHashSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
         ];
 
         var script = LeaderboardScript.ForDeleteEntitiesBatch().ExecutableScript;
@@ -592,7 +639,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
             CacheKey.ForEntityDataHashSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
         ];
 
         await this._redis.KeyDeleteAsync(keys);
@@ -621,6 +669,42 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         cancellationToken.ThrowIfCancellationRequested();
         await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
+    }
+
+    private async Task<long> InternalUpdateEntityScoreWithVersionAsync(
+        RedisValue leaderboardKey,
+        RedisValue entityKey,
+        double score,
+        long expectedVersion,
+        bool fireAndForget,
+        CancellationToken cancellationToken)
+    {
+        var invertedScore = -score;
+
+        var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
+
+        var script = LeaderboardScript.ForUpdateEntityScoreWithVersion().ExecutableScript;
+
+        var keys = new RedisKey[]
+        {
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityVersionHashSet(leaderboardKey)
+        };
+
+        var args = new RedisValue[] { entityKey, invertedScore, expectedVersion };
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
+
+        var parsed = (long[])result!;
+        var status = parsed[0];
+        var version = parsed[1];
+
+        if (status == -1)
+            throw new ConcurrencyException(entityKey, expectedVersion, version);
+
+        return version;
     }
     
     private async Task<TEntity[]> GetLeaderboardAsync(
@@ -712,6 +796,13 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var entityData = await this._redis.HashGetAsync(
             CacheKey.ForEntityDataHashSet(leaderboardKey), hashEntryKeys);
 
+        RedisValue[] entityVersions = [];
+        if (EntityTypeAccessor<TEntity>.HasVersion)
+        {
+            entityVersions = await this._redis.HashGetAsync(
+                CacheKey.ForEntityVersionHashSet(leaderboardKey), hashEntryKeys);
+        }
+
         var leaderboard = new TEntity[keysWithLeaderboardMetrics.Count];
 
         for (var i = 0; i < entityData.Length; i++)
@@ -738,6 +829,12 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
             // Ensure score is the authoritative value from Redis (in case JSON is stale)
             EntityTypeAccessor<TEntity>.SetScore(entity, NormalizeScore(stats.Score));
             EntityTypeAccessor<TEntity>.SetKey(entity, hashEntryKeys[i]);
+
+            if (EntityTypeAccessor<TEntity>.HasVersion && entityVersions.Length > i)
+            {
+                var versionValue = entityVersions[i];
+                EntityTypeAccessor<TEntity>.SetVersion(entity, versionValue.HasValue ? (long)versionValue : 0);
+            }
 
             leaderboard[i] = entity;
         }

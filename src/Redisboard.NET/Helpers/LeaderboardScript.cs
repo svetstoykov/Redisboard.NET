@@ -58,11 +58,25 @@ internal static class LeaderboardScript
     /// KEYS[1]: Leaderboard sorted set key.
     /// KEYS[2]: Unique scores sorted set key.
     /// KEYS[3]: Metadata hash key.
+    /// KEYS[4]: Version hash key.
     /// ARGV: Entity keys to delete.
     /// Returns 1 on success.
     /// </summary>
     private static readonly Lazy<LuaScript> DeleteEntitiesBatch =
         new(() => LuaScript.Prepare(LoadLuaScript("delete_entities_batch.lua")));
+
+    /// <summary>
+    /// Updates an entity's score with optimistic concurrency control.
+    /// KEYS[1]: Leaderboard sorted set key.
+    /// KEYS[2]: Unique scores sorted set key.
+    /// KEYS[3]: Version hash key.
+    /// ARGV[1]: Member identifier.
+    /// ARGV[2]: New score.
+    /// ARGV[3]: Expected version.
+    /// Returns {1, newVersion} on success or {-1, currentVersion} on version mismatch.
+    /// </summary>
+    private static readonly Lazy<LuaScript> UpdateEntityScoreWithVersion =
+        new(() => LuaScript.Prepare(LoadLuaScript("update_entity_score_with_version.lua")));
 
     /// <summary>
     /// Gets the pre-compiled Lua script for retrieving entity keys by range with competition ranking.
@@ -98,6 +112,13 @@ internal static class LeaderboardScript
     /// <returns>The prepared Lua script.</returns>
     public static LuaScript ForDeleteEntitiesBatch()
         => DeleteEntitiesBatch.Value;
+
+    /// <summary>
+    /// Gets the pre-compiled Lua script for updating an entity's score with optimistic concurrency control.
+    /// </summary>
+    /// <returns>The prepared Lua script.</returns>
+    public static LuaScript ForUpdateEntityScoreWithVersion()
+        => UpdateEntityScoreWithVersion.Value;
 
     /// <summary>
     /// Loads a Lua script from embedded resources.
