@@ -16,31 +16,33 @@ namespace Redisboard.NET.Helpers;
 internal static class EntityTypeAccessor<TEntity>
     where TEntity : ILeaderboardEntity
 {
-    private static readonly (
+    private static readonly Lazy<(
         Func<TEntity, RedisValue> KeyGetter,
         Action<TEntity, RedisValue> KeySetter,
         Func<TEntity, double> ScoreGetter,
         Action<TEntity, double> ScoreSetter
-    ) Accessors = ResolveAccessors();
+    )> Accessors = new(ResolveAccessors);
+
+    internal static void Validate() => _ = Accessors.Value;
 
     internal static RedisValue GetKey(TEntity entity)
     {
-        return Accessors.KeyGetter(entity);
+        return Accessors.Value.KeyGetter(entity);
     }
 
     internal static void SetKey(TEntity entity, RedisValue key)
     {
-        Accessors.KeySetter(entity, key);
+        Accessors.Value.KeySetter(entity, key);
     }
 
     internal static double GetScore(TEntity entity)
     {
-        return Accessors.ScoreGetter(entity);
+        return Accessors.Value.ScoreGetter(entity);
     }
 
     internal static void SetScore(TEntity entity, double score)
     {
-        Accessors.ScoreSetter(entity, score);
+        Accessors.Value.ScoreSetter(entity, score);
     }
 
     /// <summary>

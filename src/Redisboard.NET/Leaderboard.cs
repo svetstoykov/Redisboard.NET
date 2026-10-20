@@ -57,8 +57,10 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Use this overload when application code already controls creation of <see cref="IDatabase"/> and needs
     /// <see cref="Leaderboard{TEntity}"/> to reuse that database selection and connection lifetime.
     /// </remarks>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when the entity key or score configuration is invalid.</exception>
     public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer)
     {
+        EntityTypeAccessor<TEntity>.Validate();
         this._redis = redis;
         this._serializer = serializer;
     }
@@ -68,15 +70,16 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </summary>
     /// <param name="connectionMultiplexer">Redis multiplexer used to resolve the target database.</param>
     /// <param name="serializer">Serializes and deserializes entity metadata stored alongside ranking data.</param>
-    /// <param name="databaseIndex">Zero-based Redis database index passed to <see cref="IConnectionMultiplexer.GetDatabase(int, object)"/>.</param>
+    /// <param name="databaseIndex">Zero-based Redis database index, or -1 to use the configured default, passed to <see cref="IConnectionMultiplexer.GetDatabase(int, object)"/>.</param>
     /// <remarks>
     /// Use this overload when dependency injection or application startup manages the shared
     /// <see cref="IConnectionMultiplexer"/> and leaderboard instances should select their own database index.
     /// </remarks>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when the entity key or score configuration is invalid.</exception>
     public Leaderboard(
         IConnectionMultiplexer connectionMultiplexer,
         ILeaderboardSerializer serializer,
-        int databaseIndex = 0)
+        int databaseIndex = -1)
         : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer)
     {
     }

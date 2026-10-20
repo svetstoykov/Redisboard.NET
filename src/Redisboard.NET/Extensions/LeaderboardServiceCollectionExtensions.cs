@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Redisboard.NET.Interfaces;
+using Redisboard.NET.Helpers;
 using Redisboard.NET.Serialization;
 using StackExchange.Redis;
 
@@ -26,13 +27,13 @@ public static class LeaderboardServiceCollectionExtensions
     /// <see cref="Redisboard.NET.Attributes.LeaderboardScoreAttribute"/>.
     /// </typeparam>
     /// <param name="services">Service collection that receives leaderboard registrations.</param>
-    /// <param name="optionsAction">Configures Redis connection options when neither <see cref="IConnectionMultiplexer"/> nor <see cref="IDatabase"/> is already registered. When <see langword="null"/>, an existing Redis registration is required.</param>
-    /// <param name="databaseIndex">Zero-based Redis database index resolved for <see cref="Leaderboard{TEntity}"/> instances when <see cref="IConnectionMultiplexer"/> is used. This value is ignored when <see cref="IDatabase"/> is resolved directly from dependency injection.</param>
-    /// <param name="serializer">Serializer used for entity metadata. When <see langword="null"/>, <see cref="MemoryPackLeaderboardSerializer"/> is registered.</param>
+    /// <param name="optionsAction">Configures Redis connection options when neither <see cref="IConnectionMultiplexer"/> nor <see cref="IDatabase"/> is already registered. Must be omitted when reusing an existing Redis registration.</param>
+    /// <param name="databaseIndex">Zero-based Redis database index, or -1 to use the configured default, resolved for <see cref="Leaderboard{TEntity}"/> instances when <see cref="IConnectionMultiplexer"/> is used. This value is ignored when <see cref="IDatabase"/> is resolved directly from dependency injection.</param>
+    /// <param name="serializer">Serializer used for entity metadata. When <see langword="null"/>, <see cref="MemoryPackLeaderboardSerializer"/> is used.</param>
     /// <returns>Same <paramref name="services"/> instance so calls can be chained.</returns>
     /// <remarks>
     /// <para>
-    /// This method registers serializer and leaderboard services as singletons. Reuse a shared
+    /// This method registers each leaderboard as a singleton and retains its own serializer instance. Reuse a shared
     /// <see cref="IConnectionMultiplexer"/> whenever possible because StackExchange.Redis connections are
     /// designed for long-lived application scope.
     /// </para>
@@ -50,35 +51,35 @@ public static class LeaderboardServiceCollectionExtensions
     /// method builds a new multiplexer from <paramref name="optionsAction"/>.
     /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="optionsAction"/> is supplied alongside an existing Redis registration.</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="optionsAction"/> is <see langword="null"/> and neither <see cref="IConnectionMultiplexer"/> nor <see cref="IDatabase"/> is already registered.</exception>
+    /// <exception cref="Redisboard.NET.Exceptions.LeaderboardConfigurationException">Thrown at registration when the entity key or score configuration is invalid.</exception>
     public static IServiceCollection AddLeaderboard<TEntity>(
         this IServiceCollection services,
         Action<ConfigurationOptions> optionsAction = default,
-        int databaseIndex = 0,
+        int databaseIndex = -1,
         ILeaderboardSerializer serializer = default)
         where TEntity : ILeaderboardEntity, new()
     {
+        EntityTypeAccessor<TEntity>.Validate();
+        RegisterRedis(services, optionsAction);
         serializer ??= new MemoryPackLeaderboardSerializer();
-
-        services.AddSingleton(serializer);
 
         services.AddSingleton<ILeaderboard<TEntity>>(sp =>
         {
-            var leaderboardSerializer = sp.GetRequiredService<ILeaderboardSerializer>();
-
             var multiplexer = sp.GetService<IConnectionMultiplexer>();
             if (multiplexer is not null)
-                return new Leaderboard<TEntity>(multiplexer, leaderboardSerializer, databaseIndex);
+                return new Leaderboard<TEntity>(multiplexer, serializer, databaseIndex);
 
             var database = sp.GetService<IDatabase>();
             if (database is not null)
-                return new Leaderboard<TEntity>(database, leaderboardSerializer);
+                return new Leaderboard<TEntity>(database, serializer);
 
             throw new InvalidOperationException(
                 $"No Redis service registration found for {typeof(TEntity).Name}. Register IConnectionMultiplexer, IDatabase, or provide an options delegate.");
         });
 
-        return RegisterRedis(services, optionsAction);
+        return services;
     }
 
     private static IServiceCollection RegisterRedis(
@@ -87,7 +88,14 @@ public static class LeaderboardServiceCollectionExtensions
     {
         if (services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer))
             || services.Any(s => s.ServiceType == typeof(IDatabase)))
+        {
+            if (optionsAction is not null)
+                throw new ArgumentException(
+                    "Redis is already registered. Omit the options delegate to reuse the existing connection or database.",
+                    nameof(optionsAction));
+
             return services;
+        }
 
         if (optionsAction is null)
             throw new ArgumentNullException(
