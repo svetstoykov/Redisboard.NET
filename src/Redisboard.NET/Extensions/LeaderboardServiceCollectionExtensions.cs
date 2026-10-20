@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Redisboard.NET.Interfaces;
+using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Serialization;
 using StackExchange.Redis;
@@ -62,10 +63,10 @@ public static class LeaderboardServiceCollectionExtensions
         where TEntity : ILeaderboardEntity, new()
         => AddLeaderboard<TEntity>(services, optionsAction, new LeaderboardOptions(), databaseIndex, serializer);
 
-    /// <summary>Registers leaderboard services with explicit key naming options.</summary>
+    /// <summary>Registers leaderboard services with explicit key naming and score direction options.</summary>
     /// <typeparam name="TEntity">Entity type with configured key and score properties.</typeparam>
     /// <param name="services">Service collection receiving singleton leaderboard registration.</param>
-    /// <param name="leaderboardOptions">Key naming settings copied at registration.</param>
+    /// <param name="leaderboardOptions">Key naming and score direction settings copied at registration.</param>
     /// <param name="optionsAction">Configures a new Redis connection; pass null when Redis is already registered.</param>
     /// <param name="databaseIndex">Database index, or -1 for the configured default; ignored for an existing database.</param>
     /// <param name="serializer">Entity serializer; null selects MemoryPack.</param>
@@ -76,6 +77,7 @@ public static class LeaderboardServiceCollectionExtensions
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when key settings are null, or no Redis service or connection configuration exists.</exception>
     /// <exception cref="ArgumentException">Thrown for braces in a cluster prefix or connection configuration alongside an existing Redis service.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the options score direction is unsupported.</exception>
     /// <exception cref="Redisboard.NET.Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
     public static IServiceCollection AddLeaderboard<TEntity>(this IServiceCollection services,
         Action<ConfigurationOptions> optionsAction,
@@ -107,6 +109,31 @@ public static class LeaderboardServiceCollectionExtensions
 
         return services;
     }
+
+    /// <summary>Registers leaderboard services with an explicit score direction.</summary>
+    /// <typeparam name="TEntity">Entity type with configured key and score properties implementing <see cref="ILeaderboardEntity"/>.</typeparam>
+    /// <param name="services">Service collection that receives the singleton registration.</param>
+    /// <param name="scoreOrder">Direction shared by every client accessing this leaderboard's keys.</param>
+    /// <param name="optionsAction">Configures Redis when no connection or database is registered; otherwise must be omitted.</param>
+    /// <param name="databaseIndex">Redis database index, or -1 for the connection default; ignored for an existing <see cref="IDatabase"/>.</param>
+    /// <param name="serializer">Metadata serializer, or <see langword="null"/> to use <see cref="MemoryPackLeaderboardSerializer"/>.</param>
+    /// <returns>The same <paramref name="services"/> for fluent chaining.</returns>
+    /// <remarks>
+    /// Prefers an existing <see cref="IConnectionMultiplexer"/> over <see cref="IDatabase"/> and retains the serializer per registration.
+    /// Direction controls persisted score encoding. Changing it requires rebuilding existing leaderboard data.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="scoreOrder"/> is unsupported.</exception>
+    /// <exception cref="ArgumentException">Thrown when Redis is already registered and <paramref name="optionsAction"/> is supplied.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when Redis is not registered and <paramref name="optionsAction"/> is omitted.</exception>
+    /// <exception cref="Redisboard.NET.Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public static IServiceCollection AddLeaderboard<TEntity>(
+        this IServiceCollection services,
+        ScoreOrder scoreOrder,
+        Action<ConfigurationOptions> optionsAction = default,
+        int databaseIndex = -1,
+        ILeaderboardSerializer serializer = default)
+        where TEntity : ILeaderboardEntity, new()
+        => AddLeaderboard<TEntity>(services, optionsAction, new LeaderboardOptions { ScoreOrder = scoreOrder }, databaseIndex, serializer);
 
     private static IServiceCollection RegisterRedis(
         IServiceCollection services,

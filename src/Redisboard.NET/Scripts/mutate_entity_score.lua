@@ -6,6 +6,7 @@ local operation = ARGV[2]
 local value = tonumber(ARGV[3])
 local condition = tonumber(ARGV[4])
 local ranking = tonumber(ARGV[5])
+local direction = tonumber(ARGV[7])
 local previous = redis.call('ZSCORE', leaderboard, member)
 local hasMetadata = redis.call('HEXISTS', metadata, member) == 1
 
@@ -19,21 +20,21 @@ end
 
 local nextScore = value
 if operation == 'increment' then
-    nextScore = -tonumber(previous) + value
+    nextScore = (tonumber(previous) * direction) + value
 end
-if nextScore ~= nextScore or nextScore == math.huge or nextScore == -math.huge or nextScore < 0 then
+if nextScore ~= nextScore or nextScore == math.huge or nextScore == -math.huge then
     return {-1}
 end
 
 local applied = condition == 0
     or (condition == 1 and previous ~= false)
     or (condition == 2 and previous == false)
-    or (condition == 3 and (previous == false or nextScore > -tonumber(previous)))
-    or (condition == 4 and (previous == false or nextScore < -tonumber(previous)))
+    or (condition == 3 and (previous == false or nextScore > (tonumber(previous) * direction)))
+    or (condition == 4 and (previous == false or nextScore < (tonumber(previous) * direction)))
 
 local score = previous
 if applied then
-    redis.call('ZADD', leaderboard, string.format('%.17g', -nextScore), member)
+    redis.call('ZADD', leaderboard, string.format('%.17g', nextScore * direction), member)
     score = redis.call('ZSCORE', leaderboard, member)
     redis.call('ZADD', uniqueScores, score, score)
     if previous and previous ~= score and redis.call('ZCOUNT', leaderboard, previous, previous) == 0 then

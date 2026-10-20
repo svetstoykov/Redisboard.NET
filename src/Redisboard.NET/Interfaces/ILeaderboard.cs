@@ -15,7 +15,8 @@ namespace Redisboard.NET.Interfaces;
 /// Redis command orchestration.
 /// </para>
 /// <para>
-/// Implementations treat higher scores as better ranks even though values are stored inverted in Redis.
+/// Higher scores rank first by default; <see cref="LeaderboardOptions.ScoreOrder"/> can select lower scores first.
+/// Descending boards store negated scores, while ascending boards store scores unchanged.
 /// Returned entities should always have <see cref="ILeaderboardEntity.Rank"/> populated according to the
 /// requested <see cref="RankingType"/>.
 /// </para>
@@ -31,7 +32,7 @@ public interface ILeaderboard<TEntity>
     /// <summary>Adds a signed delta to an existing entity's score atomically.</summary>
     /// <remarks>
     /// <para>Negative deltas decrement the score. Missing or incomplete entities are unchanged and return null score and rank.
-    /// Arithmetic producing a negative or nonfinite score fails before any write. Metadata remains unchanged.</para>
+    /// Arithmetic producing a nonfinite score fails before any write. Metadata remains unchanged.</para>
     /// <para>One Lua execution maintains the dense-score index and returns the post-write rank in the requested
     /// <see cref="RankingType"/>. See <see href="https://redis.io/docs/latest/develop/programmability/eval-intro/">Redis script atomicity</see>.
     /// Cancellation is observed before dispatch; once dispatched, completion is reported even if the token is canceled.</para>
@@ -44,7 +45,7 @@ public interface ILeaderboard<TEntity>
     /// <returns>Applied status and the score and rank from the same atomic snapshot.</returns>
     /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, delta is nonfinite, or the resulting score is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, delta is nonfinite, or the resulting score is nonfinite.</exception>
     /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
     /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
     Task<ScoreUpdateResult> IncrementEntityScoreAsync(
@@ -53,7 +54,7 @@ public interface ILeaderboard<TEntity>
 
     /// <summary>Subtracts a non-negative amount from an existing entity's score atomically.</summary>
     /// <remarks>Uses the same atomicity, metadata preservation, missing-entity behavior, and cancellation contract as
-    /// <see cref="IncrementEntityScoreAsync"/>. A resulting negative or nonfinite score fails before any write.</remarks>
+    /// <see cref="IncrementEntityScoreAsync"/>. A resulting nonfinite score fails before any write.</remarks>
     /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
     /// <param name="entityKey">Existing entity identifier; must be a valid identity key.</param>
     /// <param name="amount">Finite, non-negative amount to subtract.</param>
@@ -62,7 +63,7 @@ public interface ILeaderboard<TEntity>
     /// <returns>Applied status and the score and rank from the same atomic snapshot.</returns>
     /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, amount is negative or nonfinite, or the resulting score is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, amount is negative or nonfinite, or the resulting score is nonfinite.</exception>
     /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
     /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
     Task<ScoreUpdateResult> DecrementEntityScoreAsync(
@@ -79,14 +80,14 @@ public interface ILeaderboard<TEntity>
     /// </remarks>
     /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
     /// <param name="entityKey">Existing entity identifier; must be a valid identity key.</param>
-    /// <param name="score">Finite, non-negative replacement score.</param>
+    /// <param name="score">Finite replacement score.</param>
     /// <param name="condition">Condition governing acceptance of the replacement.</param>
     /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
     /// <param name="cancellationToken">Cancels before script dispatch.</param>
     /// <returns>Whether the write was accepted, together with the resulting score and rank.</returns>
     /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is negative or nonfinite, or condition is unknown.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is nonfinite, or condition is unknown.</exception>
     /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
     /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
     Task<ScoreUpdateResult> UpdateEntityScoreConditionalAsync(
@@ -102,14 +103,14 @@ public interface ILeaderboard<TEntity>
     /// before dispatch even when Redis later rejects the condition. Cancellation is observed before dispatch only.</para>
     /// </remarks>
     /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
-    /// <param name="entity">Entity supplying valid identity, finite non-negative score, and serialized metadata.</param>
+    /// <param name="entity">Entity supplying valid identity, finite score, and serialized metadata.</param>
     /// <param name="condition">Condition governing acceptance of the complete entity write.</param>
     /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
     /// <param name="cancellationToken">Cancels before script dispatch.</param>
     /// <returns>Whether the write was accepted, together with the resulting score and rank.</returns>
     /// <exception cref="ArgumentNullException">Thrown when entity or either identifier is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is negative or nonfinite, or condition is unknown.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is nonfinite, or condition is unknown.</exception>
     /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
     /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
     Task<ScoreUpdateResult> AddEntityConditionalAsync(
@@ -178,7 +179,7 @@ public interface ILeaderboard<TEntity>
     /// Adds an entity to a leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite and non-negative.</param>
+    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -198,7 +199,7 @@ public interface ILeaderboard<TEntity>
     /// Adds multiple entities to a leaderboard in one batch operation.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entities"/>.</param>
-    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite, non-negative score.</param>
+    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -223,7 +224,7 @@ public interface ILeaderboard<TEntity>
     /// Updates the score of an existing entity without rewriting its metadata.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite, non-negative replacement score.</param>
+    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite replacement score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -242,7 +243,7 @@ public interface ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
     /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
-    /// <param name="score">Replacement score. Must be finite and non-negative.</param>
+    /// <param name="score">Replacement score. Must be finite.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -296,8 +297,8 @@ public interface ILeaderboard<TEntity>
     /// Returns entities whose scores fall within an inclusive score range.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard to query.</param>
-    /// <param name="minScore">Inclusive lower bound for score filter. Cannot be negative.</param>
-    /// <param name="maxScore">Inclusive upper bound for score filter. Cannot be negative and must be greater than or equal to <paramref name="minScore"/>.</param>
+    /// <param name="minScore">Inclusive lower bound for score filter. May be negative infinity; cannot be NaN.</param>
+    /// <param name="maxScore">Inclusive upper bound for score filter. Cannot be NaN and must be greater than or equal to <paramref name="minScore"/>.</param>
     /// <param name="rankingType">Ranking algorithm used to populate <see cref="ILeaderboardEntity.Rank"/> on returned entities.</param>
     /// <param name="cancellationToken">Cancels operation before or during downstream leaderboard reads.</param>
     /// <returns>Entities that match requested score range, ordered by rank, or an empty array when no entries match.</returns>

@@ -64,11 +64,11 @@ This is exactly why sorted sets scale so well: a leaderboard with 500,000 player
 
 > For a deeper look at how Redis implements sorted sets internally, [this post](https://jothipn.github.io/2023/04/07/redis-sorted-set.html) walks through the skip list structure with great diagrams.
 
-One catch: Redis sorts in **ascending** order by default. For a leaderboard, you want the *highest* score at the top. The common trick — and the one Redisboard.NET uses — is to **negate the scores** before storing them. A score of `4200` is stored as `-4200`. Now the highest real score has the lowest stored value, so it naturally appears first in ascending order.
+One catch: Redis sorts in **ascending** order by default. For a default descending leaderboard, the *highest* score belongs at the top. The common trick — and the one Redisboard.NET uses for that direction — is to **negate the scores** before storing them. A score of `4200` is stored as `-4200`. Now the highest real score has the lowest stored value, so it naturally appears first in ascending order.
 
-`Leaderboard<TEntity>` negates scores inline before writes and restores their sign when reading scores from Redis.
+`Leaderboard<TEntity>` negates scores before writes and restores their sign on reads for descending boards. Ascending boards use the original scores on both paths.
 
-This is a simple but important detail. If you ever inspect a leaderboard directly in Redis, all the scores will be negative — that's intentional.
+This is a simple but important detail. Default descending boards negate every score, including negative inputs. Ascending boards store scores unchanged. See [signed scores and direction](../README.md#signed-scores-and-score-direction) for configuration and migration constraints.
 
 ---
 
@@ -82,7 +82,7 @@ For each leaderboard, Redisboard.NET maintains **three Redis keys**:
 Key: sorted_set_leaderboard_{leaderboardKey}
 ```
 
-This is the source of truth for rankings. Members are entity keys (e.g., `"player:42"`), and scores are the negated real scores.
+This is the source of truth for rankings. Members are entity keys (e.g., `"player:42"`), and scores use the configured encoding: negated real scores for descending boards, unchanged scores for ascending boards.
 
 ```
 ZADD sorted_set_leaderboard_global -4200 "player:1"
@@ -95,7 +95,7 @@ ZADD sorted_set_leaderboard_global -3800 "player:2"
 Key: sorted_set_unique_score_{leaderboardKey}
 ```
 
-This is the clever bit. It's another sorted set, but it only stores *distinct* score values — not player IDs. The member is the score value as a string, and the score is the same negated value.
+This is the clever bit. It's another sorted set, but it only stores *distinct* score values — not player IDs. The member is the encoded score value as a string, and the score is that same encoded value. The examples below use default descending order.
 
 ```
 # If players have scores 4200, 3800, 3800 — only two unique scores exist
@@ -388,7 +388,7 @@ await leaderboard.UpdateEntityScoreAsync("global", player);
 
 ### 5. Scores Are Stored Negated — Don't Query Redis Directly for Diagnostics
 
-If you open a Redis CLI and inspect the sorted set directly, all scores will be negative. A player with score `9500` will appear with score `-9500`. This is intentional — but confusing the first time you see it. Use the library's `GetEntityScoreAsync` method if you need the real value.
+If you open a Redis CLI and inspect the sorted set directly, default descending boards store negated scores. A player with score `9500` will appear with score `-9500`. This is intentional — but confusing the first time you see it. Use the library's `GetEntityScoreAsync` method if you need the real value.
 
 ### 6. The Unique Scores Set Gets Out of Sync If You Write Directly to Redis
 

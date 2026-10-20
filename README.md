@@ -231,7 +231,7 @@ and one-based `Rank`, captured in the same Redis script as the write. Rejected c
 unchanged score and rank; accepted equal-score writes still report `Applied = true`. Results use the
 requested `RankingType`, defaulting to ordinal ranking. Import `Redisboard.NET.Enumerations` for both enums.
 
-Scores must remain finite and non-negative. Invalid deltas, arithmetic overflow, and negative results
+Scores must remain finite. Invalid deltas, and arithmetic overflow
 throw `ArgumentOutOfRangeException` before modifying ranking data or its dense-score index. Cancellation
 is checked before dispatch; after dispatch the operation reports its Redis result. Existing write APIs
 retain their behavior and signatures.
@@ -389,6 +389,51 @@ Ranks: [1, 2, 4, 4, 5, 6]
 ```
 
 Use `RankingType.Default` when you want Redis native ordering and a unique position for every player. Use one of the other ranking types when tied scores should share the same displayed rank.
+
+### Signed scores and score direction
+
+Scores accept any finite positive, zero, or negative value. NaN and infinities are rejected on writes.
+Score ranges accept signed bounds and `double.NegativeInfinity` / `double.PositiveInfinity` for open ends;
+`minScore` must remain less than or equal to `maxScore` regardless of direction.
+
+Higher scores rank first by default. Choose lower-is-better boards explicitly:
+
+```cs
+var leaderboard = new Leaderboard<Player>(
+    redis, new MemoryPackLeaderboardSerializer(), ScoreOrder.Ascending);
+
+// Or register with dependency injection using an existing Redis service:
+builder.Services.AddLeaderboard<Player>(ScoreOrder.Ascending);
+```
+
+To combine direction with key configuration, set `ScoreOrder` on `LeaderboardOptions`:
+
+```cs
+var options = new LeaderboardOptions
+{
+    KeyPrefix = "season:",
+    UseClusterHashTags = true,
+    ScoreOrder = ScoreOrder.Ascending
+};
+var configured = new Leaderboard<Player>(redis, new MemoryPackLeaderboardSerializer(), options);
+builder.Services.AddLeaderboard<Player>(optionsAction: null, leaderboardOptions: options);
+```
+
+Options are copied at construction or DI registration, including score direction.
+
+`ScoreOrder` belongs to `Redisboard.NET.Enumerations`. Direction applies to every rank and score read,
+including neighbors and score ranges. `RankingType` still controls how ties receive rank numbers.
+Equal scores always use ascending member-byte ordering; numeric keys `"10"` precede `"9"`.
+Arrival time does not affect ties.
+
+All clients sharing a leaderboard key must use the same direction. Existing constructors and DI
+registrations keep descending order and the existing negated score format. Ascending boards store
+scores unchanged. Changing direction on populated data requires rebuilding the leaderboard from
+original scores; switching configuration alone does not migrate data.
+
+Redis stores scores as IEEE 754 doubles. Integers in the inclusive range `[-2^53, 2^53]` are exact;
+`long` scores outside that range can lose precision, causing distinct values to tie. Fractional values
+also follow double precision. Choose score units and ranges accordingly.
 
 ## Benchmarks 🚀
 

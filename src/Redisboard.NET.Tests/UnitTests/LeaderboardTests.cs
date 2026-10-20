@@ -169,12 +169,12 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_WithNegativeScore_ThrowsArgumentOutOfRangeException()
+    public async Task UpdateEntityScoreAsync_WithEntityKeyAndScore_WithNaNScore_ThrowsArgumentOutOfRangeException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            async () => await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, "player_1", -100.0));
+            async () => await leaderboard.UpdateEntityScoreAsync(LeaderboardKey, "player_1", double.NaN));
     }
 
     [Fact]
@@ -235,7 +235,7 @@ public class LeaderboardTests
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, -100, 100));
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, double.NaN, 100));
     }
 
     [Fact]
@@ -244,7 +244,7 @@ public class LeaderboardTests
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 0, -100));
+            async () => await leaderboard.GetEntitiesByScoreRangeAsync(LeaderboardKey, 0, double.NaN));
     }
 
     [Fact]

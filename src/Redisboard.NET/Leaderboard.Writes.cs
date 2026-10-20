@@ -28,6 +28,7 @@ public partial class Leaderboard<TEntity> where TEntity : ILeaderboardEntity, ne
         RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidScore(amount);
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "Amount must be non-negative.");
         return IncrementEntityScoreAsync(leaderboardKey, entityKey, -amount, rankingType, cancellationToken);
     }
 
@@ -73,16 +74,16 @@ public partial class Leaderboard<TEntity> where TEntity : ILeaderboardEntity, ne
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
             CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
-        RedisValue[] args = [entityKey, operation, value, (int)condition, (int)rankingType, metadata ?? []];
+        RedisValue[] args = [entityKey, operation, value, (int)condition, (int)rankingType, metadata ?? [], this._scoreOrder == ScoreOrder.Descending ? -1 : 1];
         var result = ((RedisResult[]?)await this._redis.ScriptEvaluateAsync(
             LeaderboardScript.ForMutateEntityScore().ExecutableScript, keys, args))!;
         var applied = (long)result[0];
         if (applied == -1)
-            throw new ArgumentOutOfRangeException(nameof(value), "Resulting score must be finite and non-negative.");
+            throw new ArgumentOutOfRangeException(nameof(value), "Resulting score must be finite.");
         if (result[1].IsNull)
             return new ScoreUpdateResult(false, null, null);
         var score = double.Parse(((string?)result[1])!, CultureInfo.InvariantCulture);
-        return new ScoreUpdateResult(applied == 1, -score, (long)result[2]);
+        return new ScoreUpdateResult(applied == 1, NormalizeScore(score), (long)result[2]);
     }
 
     private static void ValidateScoreMutation(ScoreUpdateCondition condition, RankingType rankingType)

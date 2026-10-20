@@ -118,7 +118,6 @@ public class AtomicScoreTests(LeaderboardFixture fixture) : LeaderboardTestBase(
 
     [Theory]
     [InlineData(double.MaxValue, double.MaxValue)]
-    [InlineData(5, -10)]
     public async Task InvalidArithmetic_PreservesScoreAndDenseRank(double initial, double delta)
     {
         await SeedAsync([("player", initial), ("other", 1)]);

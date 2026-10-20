@@ -73,14 +73,14 @@ internal static class Guard
     }
 
     /// <summary>
-    /// Ensures a score range limit is not negative.
+    /// Ensures a score range limit is not NaN.
     /// </summary>
     /// <param name="limit">The score range limit to validate.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when limit is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when limit is NaN.</exception>
     public static void AgainstInvalidScoreRangeLimit(double limit)
     {
-        if (limit < 0)
-            throw new ArgumentOutOfRangeException(nameof(limit), "Score range limit cannot be negative!");
+        if (double.IsNaN(limit))
+            throw new ArgumentOutOfRangeException(nameof(limit), "Score range limit cannot be NaN!");
     }
 
     /// <summary>
@@ -96,14 +96,14 @@ internal static class Guard
     }
 
     /// <summary>
-    /// Ensures a score is finite and non-negative.
+    /// Ensures a score is finite.
     /// </summary>
     /// <param name="newScore">The score to validate.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when score is negative, NaN, or infinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when score is NaN or infinite.</exception>
     public static void AgainstInvalidScore(double newScore)
     {
-        if (newScore < 0 || double.IsNaN(newScore) || double.IsInfinity(newScore))
-            throw new ArgumentOutOfRangeException(nameof(newScore), "Score must be finite and non-negative!");
+        if (double.IsNaN(newScore) || double.IsInfinity(newScore))
+            throw new ArgumentOutOfRangeException(nameof(newScore), "Score must be finite!");
     }
 
     /// <summary>
