@@ -34,7 +34,11 @@ public interface ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// <para>
     /// Writes ranking data, score-tracking data, and serialized metadata for <paramref name="entity"/>.
+    /// Existing entity keys have their scores and metadata replaced. Previous scores remain tracked only
+    /// while at least one entity still holds them, preserving <see cref="RankingType.DenseRank"/>.
+    /// </para>
     /// </remarks>
     Task AddEntityAsync(
         RedisValue leaderboardKey,
@@ -50,9 +54,16 @@ public interface ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// <para>
     /// Batch writes reduce round trips and should be preferred when adding many entities at once.
     /// Implementations may reject batches larger than <see cref="Leaderboard{TEntity}.DefaultMaxBatchOperationSize"/>
     /// to keep Redis script payloads bounded.
+    /// </para>
+    /// <para>
+    /// Existing entity keys have their scores and metadata replaced. Entries are applied in enumeration order;
+    /// the last entry for a repeated key supplies its final score and metadata. Scores remain tracked only
+    /// while at least one entity holds them, preserving <see cref="RankingType.DenseRank"/>.
+    /// </para>
     /// </remarks>
     Task AddEntitiesAsync(
         RedisValue leaderboardKey,
