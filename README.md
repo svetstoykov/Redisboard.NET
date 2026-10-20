@@ -131,6 +131,7 @@ Other common APIs:
 // Add many players in one batch operation.
 await leaderboard.AddEntitiesAsync(leaderboardKey, players);
 
+// Updates on missing players are no-ops. Use AddEntityAsync for upserts.
 // Update only score for an existing player with model
 await leaderboard.UpdateEntityScoreAsync(
     leaderboardKey,

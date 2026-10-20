@@ -51,6 +51,8 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </EmbeddedResource>
         <None Remove="Scripts\update_entity_score.lua" />
+        <None Remove="Scripts\update_entity_metadata.lua" />
+        <EmbeddedResource Include="Scripts\update_entity_metadata.lua" />
         <EmbeddedResource Include="Scripts\update_entity_score.lua">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </EmbeddedResource>
