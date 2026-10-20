@@ -95,13 +95,17 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 {
     cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
-    cfg.DefaultDatabase = 0;
+    cfg.DefaultDatabase = 5;
 });
 ```
 
-*\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+*\* Omit config delegate if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+
+Supplying another config delegate after Redis has already been registered throws `ArgumentException` at registration. Register additional entity types without a delegate to reuse that connection.
 
 See StackExchange.Redis configuration docs for more `ConfigurationOptions` settings: [Basics](https://stackexchange.github.io/StackExchange.Redis/Basics.html) and [Configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html).
+
+`databaseIndex` defaults to `-1`, honoring `ConfigurationOptions.DefaultDatabase`. Pass an explicit index, including `0`, to override it. Each entity registration retains its own serializer.
 
 Once registered, inject `ILeaderboard<Player>` via the constructor:
 
@@ -231,7 +235,7 @@ public class SystemTextJsonSerializer : ILeaderboardSerializer
         => JsonSerializer.Deserialize<T>(data)!;
 }
 
-builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, new SystemTextJsonSerializer());
+builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, serializer: new SystemTextJsonSerializer());
 
 // Or via manually created object
 
