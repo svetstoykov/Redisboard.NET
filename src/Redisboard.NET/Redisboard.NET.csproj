@@ -10,7 +10,7 @@
         <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <ProjectType>Library</ProjectType>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
         <Version>1.0.3</Version>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/svetstoykov/Redisboard.NET</PackageProjectUrl>
@@ -18,6 +18,12 @@
         <RepositoryType>git</RepositoryType>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <PackageValidationBaselineVersion>1.0.3</PackageValidationBaselineVersion>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     </PropertyGroup>
 
@@ -32,7 +38,7 @@
 
     <ItemGroup>
         <PackageReference Include="MemoryPack" Version="1.21.4" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
         <PackageReference Include="StackExchange.Redis" Version="2.12.14" />
     </ItemGroup>
 
@@ -43,25 +49,15 @@
 
     <ItemGroup>
         <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua" />
         <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua" />
         <None Remove="Scripts\update_entity_score.lua" />
-        <EmbeddedResource Include="Scripts\update_entity_score.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <EmbeddedResource Include="Scripts\update_entity_score.lua" />
         <None Remove="Scripts\add_entities_batch.lua" />
-        <EmbeddedResource Include="Scripts\add_entities_batch.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <EmbeddedResource Include="Scripts\add_entities_batch.lua" />
         <None Remove="Scripts\delete_entities_batch.lua" />
-        <EmbeddedResource Include="Scripts\delete_entities_batch.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <EmbeddedResource Include="Scripts\delete_entities_batch.lua" />
     </ItemGroup>
 
 </Project>
