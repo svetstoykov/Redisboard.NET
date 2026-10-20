@@ -268,6 +268,10 @@ lifetimes round up to milliseconds. Missing boards are not created. Writes retai
 existing key’s TTL, but newly created keys do not inherit a previously set deadline.
 Populate seasonal boards before setting expiry, and reapply expiry after recreating keys.
 
+Custom `ILeaderboard<TEntity>` implementations must also implement `GetEntityAsync`,
+`GetEntitiesByKeysAsync`, `GetPageAsync`, and `ExpireAsync`. These additions intentionally
+expand the 1.0.3 interface; package validation suppresses only their specific CP0006 diagnostics.
+
 ## Entity Requirements
 
 ### MemoryPack Serialization
