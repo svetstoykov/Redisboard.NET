@@ -13,18 +13,29 @@ public class GetEntityAndNeighboursBenchmarks
 {
     private Leaderboard<Player> _leaderboard;
     private Player _benchmarkPlayer;
+    private ConnectionMultiplexer _connection;
 
     [GlobalSetup]
     public async Task GlobalSetup()
     {
-        var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
-        var db = connection.GetDatabase(Settings.BenchmarkDbInstance);
+        await BenchmarkLeaderboardHelper.InitializeBenchmarksLeaderboardAsync();
+        _connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+        var db = _connection.GetDatabase(Settings.BenchmarkDbInstance);
 
         _leaderboard = new Leaderboard<Player>(db, new MemoryPackLeaderboardSerializer());
 
         _benchmarkPlayer = Player.New();
 
         await _leaderboard.AddEntityAsync(Settings.LeaderboardKey(), _benchmarkPlayer);
+    }
+
+    /// <summary>Deletes benchmark data and closes the connection after the selected case.</summary>
+    /// <returns>A task that completes after benchmark cleanup.</returns>
+    [GlobalCleanup]
+    public async Task GlobalCleanup()
+    {
+        await BenchmarkLeaderboardHelper.CleanUpBenchmarksLeaderboardAsync();
+        await _connection.DisposeAsync();
     }
 
     [Benchmark(Baseline = true)]
