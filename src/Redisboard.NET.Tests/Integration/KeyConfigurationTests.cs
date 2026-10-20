@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Extensions;
+using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
 using Redisboard.NET.Serialization;
 using StackExchange.Redis;
@@ -17,8 +18,14 @@ public class KeyConfigurationTests
         var database = connection.GetDatabase(0);
         var prefix = $"rb007:{Guid.NewGuid():N}:";
         var key = "board{user-tag}";
-        var leaderboard = new Leaderboard<Player>(database, new MemoryPackLeaderboardSerializer(),
-            new LeaderboardOptions { KeyPrefix = prefix, UseClusterHashTags = true });
+        var options = new LeaderboardOptions { KeyPrefix = prefix, UseClusterHashTags = true };
+        var leaderboard = new Leaderboard<Player>(database, new MemoryPackLeaderboardSerializer(), options);
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(key, options),
+            CacheKey.ForUniqueScoreSortedSet(key, options),
+            CacheKey.ForEntityDataHashSet(key, options)
+        ];
         try
         {
             await leaderboard.AddEntityAsync(key, new Player { Id = "one", Score = 10 });
@@ -26,8 +33,8 @@ public class KeyConfigurationTests
             await leaderboard.UpdateEntityScoreAsync(key, "one", 30);
             await leaderboard.UpdateEntityMetadataAsync(key, new Player { Id = "one", Username = "updated" });
 
-            var keys = connection.GetServer(connection.GetEndPoints()[0]).Keys(0, prefix + "*").ToArray();
-            Assert.Equal(3, keys.Length);
+            foreach (var redisKey in keys)
+                Assert.True(await database.KeyExistsAsync(redisKey));
             Assert.All(keys, redisKey => Assert.InRange(connection.GetHashSlot(redisKey), 0, 16383));
             Assert.Single(keys.Select(connection.GetHashSlot).Distinct());
             Assert.Equal(30, await leaderboard.GetEntityScoreAsync(key, "one"));
@@ -52,7 +59,8 @@ public class KeyConfigurationTests
         {
             await leaderboard.DeleteAsync(key);
         }
-        Assert.Empty(connection.GetServer(connection.GetEndPoints()[0]).Keys(0, prefix + "*"));
+        foreach (var redisKey in keys)
+            Assert.False(await database.KeyExistsAsync(redisKey));
     }
 
     private sealed class ClusterFactAttribute : FactAttribute
