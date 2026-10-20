@@ -4,6 +4,9 @@ local memberId = ARGV[1]
 local newScore = ARGV[2]
 
 local currentScoreStr = redis.call('ZSCORE', sortedSetCacheKey, memberId)
+if currentScoreStr == false or redis.call('HEXISTS', KEYS[3], memberId) == 0 then
+    return false
+end
 
 redis.call('ZADD', sortedSetCacheKey, newScore, memberId)
 local newScoreStr = redis.call('ZSCORE', sortedSetCacheKey, memberId)

@@ -79,6 +79,7 @@ public interface ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// Call <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/>
     /// separately when non-score properties must also be persisted.
     /// </remarks>
@@ -97,6 +98,7 @@ public interface ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// Call <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/>
     /// separately when non-score properties must also be persisted.
     /// </remarks>
@@ -113,8 +115,9 @@ public interface ILeaderboard<TEntity>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
     /// <param name="entity">Entity whose configured key identifies the stored member and whose serialized state becomes the new metadata payload.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
-    /// <param name="cancellationToken">Cancels operation before Redis hash update begins.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// Ranking order does not change. Use
     /// <see cref="UpdateEntityScoreAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/>
     /// when score changes must also be persisted.
@@ -204,7 +207,8 @@ public interface ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard to query.</param>
     /// <param name="cancellationToken">Propagates cancellation for API consumers.</param>
-    /// <returns>Total number of entities with metadata stored for <paramref name="leaderboardKey"/>.</returns>
+    /// <returns>Total number of ranked members stored for <paramref name="leaderboardKey"/>.</returns>
+    /// <remarks>Counts the authoritative ranking set, including legacy members whose metadata is absent.</remarks>
     Task<long> GetSizeAsync(
         RedisValue leaderboardKey,
         CancellationToken cancellationToken = default);
