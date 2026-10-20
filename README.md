@@ -12,11 +12,13 @@ Redisboard.NET is an optimized .NET library designed to handle leaderboards effi
 > Read the [Architecture Deep Dive](https://github.com/svetstoykov/Redisboard.NET/blob/main/docs/deep-dive.md) — covering the three-structure Redis design, score negation, Lua atomicity, ranking algorithms, serialization, and common pitfalls. A good starting point whether you're evaluating the library or contributing to it.
 
 ## Quick Start
+**Requires Redis 7.0 or newer** for read-only Lua scripts (`EVAL_RO`). Redis Cluster requires the opt-in key configuration below and database zero.
+
 First up, let's get a Redis server ready. Docker makes this super easy.
 
 After you've got Docker [set up on your machine](https://docs.docker.com/engine/install/), just pop open your terminal and run:
 ```sh
-docker run --name my-redis-server -d redis
+docker run --name my-redis-server -p 6379:6379 -d redis:7
 ```
 
 With your Redis server humming along, it's time to install the [Redisboard.NET](https://www.nuget.org/packages/Redisboard.NET/) package with this quick command:
@@ -177,6 +179,26 @@ await leaderboard.DeleteEntitiesAsync(leaderboardKey, ["player1", "player2"]);
 // Delete entire leaderboard and all associated Redis data.
 await leaderboard.DeleteAsync(leaderboardKey);
 ```
+
+## Redis key configuration
+
+Default settings preserve existing key names. Configure a literal prefix to isolate environments or tenants:
+
+```cs
+var options = new LeaderboardOptions
+{
+    KeyPrefix = "production:",
+    UseClusterHashTags = true
+};
+var leaderboard = new Leaderboard<Player>(redis, new MemoryPackLeaderboardSerializer(), options);
+
+// With an existing Redis service registration:
+builder.Services.AddLeaderboard<Player>(optionsAction: null, leaderboardOptions: options);
+```
+
+Cluster mode assigns all three structures for each leaderboard to one hash slot. The generated tag uses a SHA-256 digest of the leaderboard identity, so braces in caller-supplied identities cannot override it. Prefixes cannot contain braces in cluster mode. Different boards distribute across cluster slots; identical board identities use the same slot across prefixes.
+
+Settings are copied at construction or DI registration. Changing prefix or cluster mode selects different Redis keys: **existing data is not migrated**. Keep existing settings to retain access, or migrate all three structures together during a controlled cutover. Default mode preserves `sorted_set_leaderboard_<identity>`, `entity_data_hashset_leaderboard_<identity>`, and `sorted_set_unique_score_<identity>`.
 
 ## Entity Requirements
 

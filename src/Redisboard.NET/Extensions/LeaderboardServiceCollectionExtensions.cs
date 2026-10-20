@@ -60,7 +60,33 @@ public static class LeaderboardServiceCollectionExtensions
         int databaseIndex = -1,
         ILeaderboardSerializer serializer = default)
         where TEntity : ILeaderboardEntity, new()
+        => AddLeaderboard<TEntity>(services, optionsAction, new LeaderboardOptions(), databaseIndex, serializer);
+
+    /// <summary>Registers leaderboard services with explicit key naming options.</summary>
+    /// <typeparam name="TEntity">Entity type with configured key and score properties.</typeparam>
+    /// <param name="services">Service collection receiving singleton leaderboard registration.</param>
+    /// <param name="leaderboardOptions">Key naming settings copied at registration.</param>
+    /// <param name="optionsAction">Configures a new Redis connection; pass null when Redis is already registered.</param>
+    /// <param name="databaseIndex">Database index, or -1 for the configured default; ignored for an existing database.</param>
+    /// <param name="serializer">Entity serializer; null selects MemoryPack.</param>
+    /// <returns>The same collection for fluent chaining.</returns>
+    /// <remarks>
+    /// Retains existing Redis service ownership and selection rules. Each entity registration captures its own
+    /// <see cref="LeaderboardOptions"/> and serializer without building an internal service provider.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when key settings are null, or no Redis service or connection configuration exists.</exception>
+    /// <exception cref="ArgumentException">Thrown for braces in a cluster prefix or connection configuration alongside an existing Redis service.</exception>
+    /// <exception cref="Redisboard.NET.Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public static IServiceCollection AddLeaderboard<TEntity>(this IServiceCollection services,
+        Action<ConfigurationOptions> optionsAction,
+        LeaderboardOptions leaderboardOptions,
+        int databaseIndex = -1,
+        ILeaderboardSerializer serializer = default)
+        where TEntity : ILeaderboardEntity, new()
     {
+        if (leaderboardOptions is null)
+            throw new ArgumentNullException(nameof(leaderboardOptions));
+        var snapshot = leaderboardOptions.Snapshot();
         EntityTypeAccessor<TEntity>.Validate();
         RegisterRedis(services, optionsAction);
         serializer ??= new MemoryPackLeaderboardSerializer();
@@ -69,11 +95,11 @@ public static class LeaderboardServiceCollectionExtensions
         {
             var multiplexer = sp.GetService<IConnectionMultiplexer>();
             if (multiplexer is not null)
-                return new Leaderboard<TEntity>(multiplexer, serializer, databaseIndex);
+                return new Leaderboard<TEntity>(multiplexer, serializer, snapshot, databaseIndex);
 
             var database = sp.GetService<IDatabase>();
             if (database is not null)
-                return new Leaderboard<TEntity>(database, serializer);
+                return new Leaderboard<TEntity>(database, serializer, snapshot);
 
             throw new InvalidOperationException(
                 $"No Redis service registration found for {typeof(TEntity).Name}. Register IConnectionMultiplexer, IDatabase, or provide an options delegate.");
