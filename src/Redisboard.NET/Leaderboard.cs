@@ -1,3 +1,4 @@
+using System.Globalization;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
@@ -85,7 +86,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Adds an entity to the specified leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score.</param>
+    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite and non-negative.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -104,7 +105,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or entity score is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or entity score is negative or nonfinite.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled before script execution.</exception>
     public async Task AddEntityAsync(
         RedisValue leaderboardKey,
@@ -144,7 +145,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Adds multiple entities to the specified leaderboard in one batch operation.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entities"/>.</param>
-    /// <param name="entities">Entities to add. Each entry must provide a valid key and non-negative score.</param>
+    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite, non-negative score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -163,7 +164,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing or <paramref name="entities"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entities"/> is empty or contains an entity with an empty key.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when batch size exceeds <see cref="DefaultMaxBatchOperationSize"/>, an entity key is non-positive, or an entity score is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when batch size exceeds <see cref="DefaultMaxBatchOperationSize"/>, an entity key is non-positive, or an entity score is negative or nonfinite.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled before script execution.</exception>
     public async Task AddEntitiesAsync(
         RedisValue leaderboardKey,
@@ -219,7 +220,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Updates the score of an existing entity without rewriting its metadata.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the replacement score.</param>
+    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite, non-negative replacement score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -228,7 +229,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or replacement score is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or replacement score is negative or nonfinite.</exception>
     public Task UpdateEntityScoreAsync(
         RedisValue leaderboardKey,
         TEntity entity,
@@ -251,7 +252,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
     /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
-    /// <param name="score">Replacement score. Cannot be negative.</param>
+    /// <param name="score">Replacement score. Must be finite and non-negative.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -260,7 +261,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or <paramref name="entityKey"/> is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entityKey"/> is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityKey"/> is non-positive or <paramref name="score"/> is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityKey"/> is non-positive or <paramref name="score"/> is negative or nonfinite.</exception>
     public Task UpdateEntityScoreAsync(
         RedisValue leaderboardKey,
         RedisValue entityKey,
@@ -342,11 +343,11 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var startIndex = Math.Max(playerIndex.Value - offset, 0);
 
-        var pageSize = playerIndex.Value >= offset
-            ? offset * 2 + 1
-            : (int)playerIndex.Value + offset + 1;
+        var endIndex = playerIndex.Value > long.MaxValue - offset
+            ? long.MaxValue
+            : playerIndex.Value + offset;
 
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType, cancellationToken);
+        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, endIndex, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -386,9 +387,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var startIndex = await this._redis.SortedSetRankAsync(
             CacheKey.ForLeaderboardSortedSet(leaderboardKey), entitiesInRange.First());
 
-        var pageSize = entitiesInRange.Length;
+        var endIndex = startIndex!.Value + entitiesInRange.Length - 1;
 
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex!.Value, pageSize, rankingType, cancellationToken);
+        return await this.GetLeaderboardAsync(leaderboardKey, startIndex!.Value, endIndex, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -420,9 +421,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         cancellationToken.ThrowIfCancellationRequested();
 
         var startIndex = startRank - 1;
-        var pageSize = (int)(endRank - startRank) + 1;
+        var endIndex = endRank - 1;
 
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, pageSize, rankingType, cancellationToken);
+        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, endIndex, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -482,7 +483,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         if (rankingType == RankingType.Default) return playerIndex.Value + 1;
 
-        var entity = await this.GetLeaderboardAsync(leaderboardKey, playerIndex.Value, 1, rankingType, cancellationToken);
+        var entity = await this.GetLeaderboardAsync(leaderboardKey, playerIndex.Value, playerIndex.Value, rankingType, cancellationToken);
 
         return entity.First().Rank;
     }
@@ -633,7 +634,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     }
     
     private async Task<TEntity[]> GetLeaderboardAsync(
-        RedisValue leaderboardKey, long startIndex, int pageSize, RankingType rankingType,
+        RedisValue leaderboardKey, long startIndex, long endIndex, RankingType rankingType,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -641,11 +642,11 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var entityKeysWithRanking = rankingType switch
         {
             RankingType.Default
-                => await this.GetEntityKeysWithDefaultRanking(leaderboardKey, startIndex, pageSize),
+                => await this.GetEntityKeysWithDefaultRanking(leaderboardKey, startIndex, endIndex),
             RankingType.DenseRank
-                => await this.GetEntityKeysWithDenseRanking(leaderboardKey, startIndex, pageSize),
+                => await this.GetEntityKeysWithDenseRanking(leaderboardKey, startIndex, endIndex),
             RankingType.ModifiedCompetition or RankingType.StandardCompetition
-                => await this.GetEntityKeysWithCompetitionRanking(leaderboardKey, startIndex, pageSize, (int)rankingType),
+                => await this.GetEntityKeysWithCompetitionRanking(leaderboardKey, startIndex, endIndex, (int)rankingType),
             _ => throw new KeyNotFoundException(
                 $"Ranking type not found! Valid ranking types are: " +
                 $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(t => $"{t} ({(int)t})"))}.")
@@ -655,9 +656,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     }
 
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDefaultRanking(
-        RedisValue leaderboardKey, long startIndex, int pageSize)
+        RedisValue leaderboardKey, long startIndex, long endIndex)
     {
-        var endIndex = startIndex + pageSize - 1;
         var result = new Dictionary<RedisValue, LeaderboardStats>();
 
         var entities = await this._redis.SortedSetRangeByRankWithScoresAsync(
@@ -672,7 +672,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     }
 
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDenseRanking(
-        RedisValue leaderboardKey, long startIndex, int pageSize)
+        RedisValue leaderboardKey, long startIndex, long endIndex)
     {
         var script = LeaderboardScript.ForEntityKeysByRangeWithDenseRank().ExecutableScript;
 
@@ -682,19 +682,19 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
         ];
 
-        RedisValue[] args = [startIndex, pageSize];
+        RedisValue[] args = [startIndex, endIndex];
 
         return await this.EvaluateScriptToDictionaryAsync(script, keys, args);
     }
 
     private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithCompetitionRanking(
-        RedisValue leaderboardKey, long startIndex, int pageSize, int rankingType)
+        RedisValue leaderboardKey, long startIndex, long endIndex, int rankingType)
     {
         var script = LeaderboardScript.ForEntityKeysByRangeWithCompetitionRank().ExecutableScript;
 
         RedisKey[] keys = [CacheKey.ForLeaderboardSortedSet(leaderboardKey)];
 
-        RedisValue[] args = [startIndex, pageSize, rankingType];
+        RedisValue[] args = [startIndex, endIndex, rankingType];
 
         return await this.EvaluateScriptToDictionaryAsync(script, keys, args);
     }
@@ -706,7 +706,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         return ((RedisResult[])results ?? [])
             .Select(r => (string[])r)
-            .ToDictionary(r => new RedisValue(r[0]), r => new LeaderboardStats(long.Parse(r[1]), double.Parse(r[2])));
+            .ToDictionary(r => new RedisValue(r[0]), r => new LeaderboardStats(
+                long.Parse(r[1], CultureInfo.InvariantCulture),
+                double.Parse(r[2], CultureInfo.InvariantCulture)));
     }
 
     private async Task<TEntity[]> GetEntitiesDataAsync(

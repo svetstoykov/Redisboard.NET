@@ -96,14 +96,14 @@ internal static class Guard
     }
 
     /// <summary>
-    /// Ensures a score is not negative.
+    /// Ensures a score is finite and non-negative.
     /// </summary>
     /// <param name="newScore">The score to validate.</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when score is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when score is negative, NaN, or infinite.</exception>
     public static void AgainstInvalidScore(double newScore)
     {
-        if (newScore < 0)
-            throw new ArgumentOutOfRangeException(nameof(newScore), "Score cannot be negative!");
+        if (newScore < 0 || double.IsNaN(newScore) || double.IsInfinity(newScore))
+            throw new ArgumentOutOfRangeException(nameof(newScore), "Score must be finite and non-negative!");
     }
 
     /// <summary>
