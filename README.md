@@ -236,6 +236,12 @@ throw `ArgumentOutOfRangeException` before modifying ranking data or its dense-s
 is checked before dispatch; after dispatch the operation reports its Redis result. Existing write APIs
 retain their behavior and signatures.
 
+Applications providing custom `ILeaderboard<TEntity>` implementations must implement the four new
+members: `IncrementEntityScoreAsync`, `DecrementEntityScoreAsync`,
+`UpdateEntityScoreConditionalAsync`, and `AddEntityConditionalAsync`. This interface expansion is an
+intentional compatibility change from 1.0.3. Package validation suppresses only the corresponding
+member-specific CP0006 diagnostics for both target frameworks; other compatibility checks remain active.
+
 ## Entity Requirements
 
 ### MemoryPack Serialization
