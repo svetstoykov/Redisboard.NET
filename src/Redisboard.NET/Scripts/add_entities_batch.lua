@@ -11,6 +11,7 @@ for i = 1, #ARGV, 3 do
 
   redis.call('ZADD', leaderboardKey, invertedScore, entityKey)
   local currentScoreStr = redis.call('ZSCORE', leaderboardKey, entityKey)
+  redis.call('ZADD', uniqueScoreKey, currentScoreStr, currentScoreStr)
 
   if previousScoreStr ~= false and previousScoreStr ~= currentScoreStr then
     local countWithPreviousScore = redis.call('ZCOUNT', leaderboardKey, previousScoreStr, previousScoreStr)
@@ -19,7 +20,6 @@ for i = 1, #ARGV, 3 do
     end
   end
 
-  redis.call('ZADD', uniqueScoreKey, currentScoreStr, currentScoreStr)
   redis.call('HSET', metadataKey, entityKey, metadata)
 end
 
