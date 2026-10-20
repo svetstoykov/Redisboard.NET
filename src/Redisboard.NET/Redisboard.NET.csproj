@@ -49,15 +49,25 @@
 
     <ItemGroup>
         <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua" />
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
         <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua" />
+        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
         <None Remove="Scripts\update_entity_score.lua" />
-        <EmbeddedResource Include="Scripts\update_entity_score.lua" />
+        <EmbeddedResource Include="Scripts\update_entity_score.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
         <None Remove="Scripts\add_entities_batch.lua" />
-        <EmbeddedResource Include="Scripts\add_entities_batch.lua" />
+        <EmbeddedResource Include="Scripts\add_entities_batch.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
         <None Remove="Scripts\delete_entities_batch.lua" />
-        <EmbeddedResource Include="Scripts\delete_entities_batch.lua" />
+        <EmbeddedResource Include="Scripts\delete_entities_batch.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </EmbeddedResource>
     </ItemGroup>
 
 </Project>
