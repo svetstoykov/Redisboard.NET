@@ -33,6 +33,19 @@ public class KeyConfigurationTests
             await leaderboard.UpdateEntityScoreAsync(key, "one", 30);
             await leaderboard.UpdateEntityMetadataAsync(key, new Player { Id = "one", Username = "updated" });
 
+            var incremented = await leaderboard.IncrementEntityScoreAsync(key, "one", 5);
+            Assert.Equal(35, incremented.Score);
+            var decremented = await leaderboard.DecrementEntityScoreAsync(key, "one", 5);
+            Assert.Equal(30, decremented.Score);
+            var rejected = await leaderboard.UpdateEntityScoreConditionalAsync(key, "one", 25, ScoreUpdateCondition.Higher);
+            Assert.False(rejected.Applied);
+            Assert.Equal(30, rejected.Score);
+            var inserted = await leaderboard.AddEntityConditionalAsync(key,
+                new Player { Id = "atomic", Score = 5 }, ScoreUpdateCondition.NotExists);
+            Assert.True(inserted.Applied);
+            Assert.Equal(3, inserted.Rank);
+            await leaderboard.DeleteEntityAsync(key, "atomic");
+
             foreach (var redisKey in keys)
                 Assert.True(await database.KeyExistsAsync(redisKey));
             Assert.All(keys, redisKey => Assert.InRange(connection.GetHashSlot(redisKey), 0, 16383));
@@ -61,6 +74,47 @@ public class KeyConfigurationTests
         }
         foreach (var redisKey in keys)
             Assert.False(await database.KeyExistsAsync(redisKey));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AtomicWrites_UseConfiguredNamespace(bool cluster)
+    {
+        using var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+        var database = connection.GetDatabase(9);
+        var key = $"atomic{{board}}:{Guid.NewGuid():N}";
+        var options = new LeaderboardOptions { KeyPrefix = $"rb008:{Guid.NewGuid():N}:", UseClusterHashTags = cluster };
+        var configured = new Leaderboard<Player>(database, new MemoryPackLeaderboardSerializer(), options);
+        var legacy = new Leaderboard<Player>(database, new MemoryPackLeaderboardSerializer());
+        try
+        {
+            await configured.AddEntityAsync(key, new Player { Id = "one", Score = 10 });
+            await legacy.AddEntityAsync(key, new Player { Id = "one", Score = 1000 });
+
+            var added = await configured.AddEntityConditionalAsync(key,
+                new Player { Id = "two", Score = 20 }, ScoreUpdateCondition.NotExists);
+            var incremented = await configured.IncrementEntityScoreAsync(key, "one", 20);
+            var decremented = await configured.DecrementEntityScoreAsync(key, "one", 5);
+            var best = await configured.UpdateEntityScoreConditionalAsync(key, "one", 35, ScoreUpdateCondition.Higher);
+
+            Assert.True(added.Applied);
+            Assert.Equal(20, added.Score);
+            Assert.Equal(30, incremented.Score);
+            Assert.Equal(25, decremented.Score);
+            Assert.True(best.Applied);
+            Assert.Equal(35, best.Score);
+            Assert.Equal(1, best.Rank);
+            Assert.Equal(35, await configured.GetEntityScoreAsync(key, "one"));
+            Assert.Equal(2, await configured.GetSizeAsync(key));
+            Assert.Equal(1000, await legacy.GetEntityScoreAsync(key, "one"));
+            Assert.Null(await legacy.GetEntityScoreAsync(key, "two"));
+        }
+        finally
+        {
+            await configured.DeleteAsync(key);
+            await legacy.DeleteAsync(key);
+        }
     }
 
     private sealed class ClusterFactAttribute : FactAttribute

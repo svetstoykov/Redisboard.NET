@@ -69,9 +69,9 @@ public partial class Leaderboard<TEntity> where TEntity : ILeaderboardEntity, ne
         cancellationToken.ThrowIfCancellationRequested();
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
         RedisValue[] args = [entityKey, operation, value, (int)condition, (int)rankingType, metadata ?? []];
         var result = ((RedisResult[]?)await this._redis.ScriptEvaluateAsync(
