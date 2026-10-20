@@ -140,4 +140,18 @@ public class NumericBoundaryTests : LeaderboardTestBase
 
         Assert.Equal(10, await Leaderboard.GetEntityScoreAsync(Key, "A"));
     }
+    /// <summary>Verifies negative scores survive persistence and ranking reads.</summary>
+    /// <param name="rankingType">Ranking mode used for the read.</param>
+    [Theory]
+    [MemberData(nameof(RankingModes))]
+    public async Task RankRange_SignedScores_PreservesSignAndDescendingOrder(RankingType rankingType)
+    {
+        await SeedAsync([("A", 5), ("B", 0), ("C", -5)]);
+
+        var result = await Leaderboard.GetEntitiesByRankRangeAsync(Key, 1, 3, rankingType);
+
+        Assert.Equal(new[] { 5d, 0d, -5d }, result.Select(p => p.Score));
+        Assert.Equal(-5, await Leaderboard.GetEntityScoreAsync(Key, "C"));
+    }
+
 }

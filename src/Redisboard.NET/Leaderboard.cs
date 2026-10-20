@@ -16,8 +16,9 @@ namespace Redisboard.NET;
 /// Redis hash so callers can read and update strongly typed entities without issuing raw Redis commands.
 /// </para>
 /// <para>
-/// Scores are written to Redis as their negated values so the native ascending sorted set order yields a
-/// descending leaderboard. Read operations normalize those scores before returning entities and populate
+/// Scores default to negated values so native ascending Redis order yields a descending leaderboard.
+/// <see cref="ScoreOrder.Ascending"/> stores scores unchanged for lower-is-better boards.
+/// Read operations decode those scores before returning entities and populate
 /// <see cref="ILeaderboardEntity.Rank"/> according to the requested <see cref="RankingType"/>.
 /// </para>
 /// </remarks>
@@ -48,6 +49,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     private readonly IDatabase _redis;
     private readonly ILeaderboardSerializer _serializer;
     private readonly LeaderboardOptions _options;
+    private readonly ScoreOrder _scoreOrder;
 
     /// <summary>
     /// Initializes a new instance that uses an existing Redis database and serializer.
@@ -64,22 +66,40 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
     }
 
-    /// <summary>Initializes a leaderboard with explicit Redis key naming options.</summary>
+    /// <summary>Initializes a leaderboard with explicit Redis key and score options.</summary>
     /// <param name="redis">Redis database used for all leaderboard commands.</param>
     /// <param name="serializer">Serializes entity metadata.</param>
-    /// <param name="options">Key naming settings copied for this instance.</param>
-    /// <remarks>Changing settings selects a different namespace without migrating data. See <see cref="LeaderboardOptions"/>.</remarks>
+    /// <param name="options">Key naming and score direction settings copied for this instance.</param>
+    /// <remarks>Changing key settings selects a different namespace. Changing score direction requires rebuilding existing data. See <see cref="LeaderboardOptions"/>.</remarks>
     /// <exception cref="ArgumentNullException">Thrown when options or its key prefix is null.</exception>
     /// <exception cref="ArgumentException">Thrown when cluster mode uses a prefix containing braces.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the options score direction is unsupported.</exception>
     /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
     public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer, LeaderboardOptions options)
     {
         if (options is null)
             throw new ArgumentNullException(nameof(options));
         this._options = options.Snapshot();
+        this._scoreOrder = this._options.ScoreOrder;
         EntityTypeAccessor<TEntity>.Validate();
         this._redis = redis;
         this._serializer = serializer;
+    }
+
+    /// <summary>Initializes a leaderboard with an explicit score direction.</summary>
+    /// <param name="redis">Redis database used for all commands.</param>
+    /// <param name="serializer">Serializer used for entity metadata.</param>
+    /// <param name="scoreOrder">Direction used to encode scores and rank entities.</param>
+    /// <remarks>
+    /// All clients sharing a leaderboard key must use the same direction. Changing direction on existing data
+    /// requires rebuilding that leaderboard. Equal scores retain ascending member-byte ordering.
+    /// See <see cref="ScoreOrder"/> for supported directions.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="scoreOrder"/> is unsupported.</exception>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer, ScoreOrder scoreOrder)
+        : this(redis, serializer, new LeaderboardOptions { ScoreOrder = scoreOrder })
+    {
     }
 
     /// <summary>
@@ -101,14 +121,15 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
     }
 
-    /// <summary>Initializes a leaderboard with explicit Redis key naming and database selection.</summary>
+    /// <summary>Initializes a leaderboard with explicit Redis key, score direction, and database selection.</summary>
     /// <param name="connectionMultiplexer">Shared Redis connection used to select the database.</param>
     /// <param name="serializer">Serializes entity metadata.</param>
-    /// <param name="options">Key naming settings copied for this instance.</param>
+    /// <param name="options">Key naming and score direction settings copied for this instance.</param>
     /// <param name="databaseIndex">Database index, or -1 for the configured default. Redis Cluster supports database zero only.</param>
     /// <remarks>The caller retains connection ownership. See <see cref="LeaderboardOptions"/> for namespace compatibility.</remarks>
     /// <exception cref="ArgumentNullException">Thrown when options or its key prefix is null.</exception>
     /// <exception cref="ArgumentException">Thrown when cluster mode uses a prefix containing braces.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the options score direction is unsupported.</exception>
     /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
     public Leaderboard(IConnectionMultiplexer connectionMultiplexer, ILeaderboardSerializer serializer,
         LeaderboardOptions options, int databaseIndex = -1)
@@ -116,11 +137,28 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     {
     }
 
+    /// <summary>Initializes a leaderboard with an explicit score direction and database selection.</summary>
+    /// <param name="connectionMultiplexer">Shared Redis connection used to resolve the database.</param>
+    /// <param name="serializer">Serializer used for entity metadata.</param>
+    /// <param name="scoreOrder">Direction used to encode scores and rank entities.</param>
+    /// <param name="databaseIndex">Redis database index, or -1 for the connection default.</param>
+    /// <remarks>
+    /// Reuses the connection lifetime. All clients sharing a leaderboard must use the same
+    /// <see cref="ScoreOrder"/>; changing direction requires rebuilding existing data.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="scoreOrder"/> is unsupported.</exception>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public Leaderboard(IConnectionMultiplexer connectionMultiplexer, ILeaderboardSerializer serializer,
+        ScoreOrder scoreOrder, int databaseIndex = -1)
+        : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer, scoreOrder)
+    {
+    }
+
     /// <summary>
     /// Adds an entity to the specified leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite and non-negative.</param>
+    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -133,13 +171,13 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// the auxiliary set only while at least one entity still holds it, preserving <see cref="RankingType.DenseRank"/>.
     /// </para>
     /// <para>
-    /// Entity keys and scores are validated before serialization. Scores are negated before persistence so the
-    /// highest score appears first when Redis returns ascending sorted set results.
+    /// Entity keys and scores are validated before serialization. Score encoding follows the configured
+    /// <see cref="ScoreOrder"/> while equal scores retain ascending member-byte ordering.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or entity score is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or entity score is nonfinite.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled before script execution.</exception>
     public async Task AddEntityAsync(
         RedisValue leaderboardKey,
@@ -157,7 +195,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var metadata = this._serializer.Serialize(entity);
 
-        var invertedScore = -score;
+        var storedScore = EncodeScore(score);
 
         RedisKey[] keys =
         [
@@ -166,7 +204,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
 
-        RedisValue[] args = [entityKey, invertedScore, metadata];
+        RedisValue[] args = [entityKey, storedScore, metadata];
 
         var script = LeaderboardScript.ForAddEntitiesBatch().ExecutableScript;
         var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
@@ -179,7 +217,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Adds multiple entities to the specified leaderboard in one batch operation.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entities"/>.</param>
-    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite, non-negative score.</param>
+    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -198,7 +236,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing or <paramref name="entities"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entities"/> is empty or contains an entity with an empty key.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when batch size exceeds <see cref="DefaultMaxBatchOperationSize"/>, an entity key is non-positive, or an entity score is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when batch size exceeds <see cref="DefaultMaxBatchOperationSize"/>, an entity key is non-positive, or an entity score is nonfinite.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled before script execution.</exception>
     public async Task AddEntitiesAsync(
         RedisValue leaderboardKey,
@@ -228,11 +266,11 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
             var metadata = this._serializer.Serialize(entry);
             Guard.AgainstInvalidMetadata(metadata);
 
-            var invertedScore = -score;
+            var storedScore = EncodeScore(score);
             var index = i * 3;
 
             args[index] = entityKey;
-            args[index + 1] = invertedScore;
+            args[index + 1] = storedScore;
             args[index + 2] = metadata;
         }
 
@@ -254,7 +292,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Updates the score of an existing entity without rewriting its metadata.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite, non-negative replacement score.</param>
+    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite replacement score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -264,7 +302,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or replacement score is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive or replacement score is nonfinite.</exception>
     public Task UpdateEntityScoreAsync(
         RedisValue leaderboardKey,
         TEntity entity,
@@ -287,7 +325,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
     /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
-    /// <param name="score">Replacement score. Must be finite and non-negative.</param>
+    /// <param name="score">Replacement score. Must be finite.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -297,7 +335,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or <paramref name="entityKey"/> is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entityKey"/> is empty.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityKey"/> is non-positive or <paramref name="score"/> is negative or nonfinite.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityKey"/> is non-positive or <paramref name="score"/> is nonfinite.</exception>
     public Task UpdateEntityScoreAsync(
         RedisValue leaderboardKey,
         RedisValue entityKey,
@@ -391,8 +429,8 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Returns entities whose scores fall within an inclusive score range.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard to query.</param>
-    /// <param name="minScore">Inclusive lower bound for score filter. Cannot be negative.</param>
-    /// <param name="maxScore">Inclusive upper bound for score filter. Cannot be negative and must be greater than or equal to <paramref name="minScore"/>.</param>
+    /// <param name="minScore">Inclusive lower bound for score filter. May be negative infinity; cannot be NaN.</param>
+    /// <param name="maxScore">Inclusive upper bound for score filter. Cannot be NaN and must be greater than or equal to <paramref name="minScore"/>.</param>
     /// <param name="rankingType">Ranking algorithm used to populate <see cref="ILeaderboardEntity.Rank"/> on returned entities.</param>
     /// <param name="cancellationToken">Cancels operation before or during downstream leaderboard reads.</param>
     /// <returns>Entities that match requested score range, ordered by rank, or an empty array when no entries match.</returns>
@@ -402,7 +440,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// entity and therefore increase Redis script time, response size, and client allocations.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing.</exception>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="minScore"/> or <paramref name="maxScore"/> is negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="minScore"/> or <paramref name="maxScore"/> is NaN.</exception>
     /// <exception cref="InvalidOperationException">Thrown when <paramref name="minScore"/> is greater than <paramref name="maxScore"/>.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     /// <exception cref="KeyNotFoundException">Thrown when <paramref name="rankingType"/> is not supported.</exception>
@@ -418,8 +456,10 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidScoreRangeLimit(maxScore);
         Guard.AgainstInvalidScoreRange(minScore, maxScore);
 
-        RedisValue lowerBound = double.IsPositiveInfinity(maxScore) ? "-inf" : (RedisValue)(-maxScore);
-        RedisValue upperBound = double.IsPositiveInfinity(minScore) ? "-inf" : (RedisValue)(-minScore);
+        var lowerScore = EncodeScore(this._scoreOrder == ScoreOrder.Descending ? maxScore : minScore);
+        var upperScore = EncodeScore(this._scoreOrder == ScoreOrder.Descending ? minScore : maxScore);
+        RedisValue lowerBound = ToRedisScoreBound(lowerScore);
+        RedisValue upperBound = ToRedisScoreBound(upperScore);
         return await this.ReadEntitiesAsync(leaderboardKey, "score", lowerBound, upperBound, rankingType, cancellationToken);
     }
 
@@ -654,7 +694,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
         bool fireAndForget,
         CancellationToken cancellationToken)
     {
-        var invertedScore = -score;
+        var storedScore = EncodeScore(score);
 
         var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
 
@@ -667,7 +707,7 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
             CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         };
 
-        var args = new[] { entityKey, invertedScore };
+        var args = new[] { entityKey, storedScore };
 
         cancellationToken.ThrowIfCancellationRequested();
         await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
@@ -724,6 +764,12 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
                 $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(t => $"{t} ({(int)t})"))}.");
     }
 
-    private static double NormalizeScore(double score)
-        => score < 0 ? -score : score;
+    private double EncodeScore(double score)
+        => this._scoreOrder == ScoreOrder.Descending ? -score : score;
+
+    private double NormalizeScore(double score) => EncodeScore(score);
+
+    private static RedisValue ToRedisScoreBound(double score)
+        => double.IsNegativeInfinity(score) ? "-inf"
+            : double.IsPositiveInfinity(score) ? "+inf" : (RedisValue)score;
 }

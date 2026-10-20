@@ -1,9 +1,12 @@
+using Redisboard.NET.Enumerations;
+
 namespace Redisboard.NET;
 
-/// <summary>Defines Redis key naming options for a leaderboard instance.</summary>
+/// <summary>Defines Redis key naming and score ordering options for a leaderboard instance.</summary>
 /// <remarks>
 /// Options are copied when constructing <see cref="Leaderboard{TEntity}"/> or registering it with dependency injection.
-/// Changing these settings selects a different Redis namespace; existing data is not migrated.
+/// Changing key settings selects a different Redis namespace; existing data is not migrated.
+/// Changing score direction requires rebuilding existing data. All clients sharing keys must use the same direction.
 /// </remarks>
 public sealed class LeaderboardOptions
 {
@@ -22,12 +25,22 @@ public sealed class LeaderboardOptions
     /// </remarks>
     public bool UseClusterHashTags { get; set; }
 
+    /// <summary>Gets or sets which score ranks first.</summary>
+    /// <remarks>
+    /// Defaults to <see cref="Enumerations.ScoreOrder.Descending"/> to preserve existing negated scores.
+    /// <see cref="Enumerations.ScoreOrder.Ascending"/> stores scores unchanged. Direction applies to all writes and reads;
+    /// equal scores always retain ascending Redis member-byte ordering.
+    /// </remarks>
+    public ScoreOrder ScoreOrder { get; set; } = ScoreOrder.Descending;
+
     internal LeaderboardOptions Snapshot()
     {
+        if (ScoreOrder is not (ScoreOrder.Descending or ScoreOrder.Ascending))
+            throw new ArgumentOutOfRangeException(nameof(ScoreOrder));
         if (KeyPrefix is null)
             throw new ArgumentNullException(nameof(KeyPrefix));
         if (UseClusterHashTags && (KeyPrefix.Contains('{') || KeyPrefix.Contains('}')))
             throw new ArgumentException("Key prefixes cannot contain braces when cluster hash tags are enabled.", nameof(KeyPrefix));
-        return new LeaderboardOptions { KeyPrefix = KeyPrefix, UseClusterHashTags = UseClusterHashTags };
+        return new LeaderboardOptions { KeyPrefix = KeyPrefix, UseClusterHashTags = UseClusterHashTags, ScoreOrder = ScoreOrder };
     }
 }
