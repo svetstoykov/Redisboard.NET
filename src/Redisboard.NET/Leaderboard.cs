@@ -47,6 +47,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
     private readonly IDatabase _redis;
     private readonly ILeaderboardSerializer _serializer;
+    private readonly LeaderboardOptions _options;
 
     /// <summary>
     /// Initializes a new instance that uses an existing Redis database and serializer.
@@ -59,7 +60,23 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </remarks>
     /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when the entity key or score configuration is invalid.</exception>
     public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer)
+        : this(redis, serializer, new LeaderboardOptions())
     {
+    }
+
+    /// <summary>Initializes a leaderboard with explicit Redis key naming options.</summary>
+    /// <param name="redis">Redis database used for all leaderboard commands.</param>
+    /// <param name="serializer">Serializes entity metadata.</param>
+    /// <param name="options">Key naming settings copied for this instance.</param>
+    /// <remarks>Changing settings selects a different namespace without migrating data. See <see cref="LeaderboardOptions"/>.</remarks>
+    /// <exception cref="ArgumentNullException">Thrown when options or its key prefix is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when cluster mode uses a prefix containing braces.</exception>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer, LeaderboardOptions options)
+    {
+        if (options is null)
+            throw new ArgumentNullException(nameof(options));
+        this._options = options.Snapshot();
         EntityTypeAccessor<TEntity>.Validate();
         this._redis = redis;
         this._serializer = serializer;
@@ -81,6 +98,21 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         ILeaderboardSerializer serializer,
         int databaseIndex = -1)
         : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer)
+    {
+    }
+
+    /// <summary>Initializes a leaderboard with explicit Redis key naming and database selection.</summary>
+    /// <param name="connectionMultiplexer">Shared Redis connection used to select the database.</param>
+    /// <param name="serializer">Serializes entity metadata.</param>
+    /// <param name="options">Key naming settings copied for this instance.</param>
+    /// <param name="databaseIndex">Database index, or -1 for the configured default. Redis Cluster supports database zero only.</param>
+    /// <remarks>The caller retains connection ownership. See <see cref="LeaderboardOptions"/> for namespace compatibility.</remarks>
+    /// <exception cref="ArgumentNullException">Thrown when options or its key prefix is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when cluster mode uses a prefix containing braces.</exception>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when entity configuration is invalid.</exception>
+    public Leaderboard(IConnectionMultiplexer connectionMultiplexer, ILeaderboardSerializer serializer,
+        LeaderboardOptions options, int databaseIndex = -1)
+        : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer, options)
     {
     }
 
@@ -129,9 +161,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
 
         RedisValue[] args = [entityKey, invertedScore, metadata];
@@ -206,9 +238,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
 
         var script = LeaderboardScript.ForAddEntitiesBatch().ExecutableScript;
@@ -313,8 +345,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
         RedisValue[] args = [entityKey, metadata];
 
@@ -446,7 +478,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidIdentityKey(entityKey);
 
         var score = await this._redis.SortedSetScoreAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options), entityKey);
 
         return score.HasValue ? NormalizeScore(score.Value) : null;
     }
@@ -482,12 +514,12 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         if (rankingType == RankingType.Default)
         {
-            var index = await this._redis.SortedSetRankAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
+            var index = await this._redis.SortedSetRankAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options), entityKey);
             cancellationToken.ThrowIfCancellationRequested();
             return index.HasValue ? index.Value + 1 : null;
         }
 
-        RedisKey[] keys = [CacheKey.ForLeaderboardSortedSet(leaderboardKey), CacheKey.ForUniqueScoreSortedSet(leaderboardKey)];
+        RedisKey[] keys = [CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options), CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options)];
         RedisValue[] args = [entityKey, (int)rankingType];
         var result = await this._redis.ScriptEvaluateReadOnlyAsync(LeaderboardScript.ForEntityRank().ExecutableScript, keys, args);
         cancellationToken.ThrowIfCancellationRequested();
@@ -507,7 +539,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
-        return await this._redis.SortedSetLengthAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey));
+        return await this._redis.SortedSetLengthAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options));
     }
 
     /// <summary>
@@ -533,9 +565,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
 
         RedisValue[] args = [entityKey];
@@ -579,9 +611,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
 
         var script = LeaderboardScript.ForDeleteEntitiesBatch().ExecutableScript;
@@ -607,9 +639,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options)
         ];
 
         await this._redis.KeyDeleteAsync(keys);
@@ -630,9 +662,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var keys = new[]
         {
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         };
 
         var args = new[] { entityKey, invertedScore };
@@ -650,9 +682,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         RedisKey[] keys =
         [
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-            CacheKey.ForEntityDataHashSet(leaderboardKey)
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+            CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
         ];
         RedisValue[] args = [query, (int)rankingType, first, second];
         var result = await this._redis.ScriptEvaluateReadOnlyAsync(LeaderboardScript.ForEntities().ExecutableScript, keys, args);
