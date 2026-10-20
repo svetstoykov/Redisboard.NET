@@ -13,7 +13,7 @@ internal static class LeaderboardScript
     /// Retrieves entity keys by range using competition ranking.
     /// KEYS[1]: Sorted set cache key (leaderboard).
     /// ARGV[1]: Start index (0-based).
-    /// ARGV[2]: Page size.
+    /// ARGV[2]: Inclusive end index (0-based).
     /// ARGV[3]: Competition type (3 = standard, 4 = modified).
     /// Returns array of [memberIdentifier, memberRank, memberScore].
     /// </summary>
@@ -25,7 +25,7 @@ internal static class LeaderboardScript
     /// KEYS[1]: Sorted set cache key (leaderboard).
     /// KEYS[2]: Unique scores sorted set cache key.
     /// ARGV[1]: Start index (0-based).
-    /// ARGV[2]: Page size.
+    /// ARGV[2]: Inclusive end index (0-based).
     /// Returns array of [memberIdentifier, memberUniqueRank, memberScore].
     /// </summary>
     private static readonly Lazy<LuaScript> EntityKeysByRangeWithDenseRank =
