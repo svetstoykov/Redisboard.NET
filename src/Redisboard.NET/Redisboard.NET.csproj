@@ -53,14 +53,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Remove="Scripts\get_entity_keys_by_range_competition_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_competition_rank.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
-        <None Remove="Scripts\get_entity_keys_by_range_dense_rank.lua" />
-        <EmbeddedResource Include="Scripts\get_entity_keys_by_range_dense_rank.lua">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </EmbeddedResource>
+        <None Remove="Scripts\get_entities.lua" />
+        <EmbeddedResource Include="Scripts\get_entities.lua" />
+        <None Remove="Scripts\get_entity_rank.lua" />
+        <EmbeddedResource Include="Scripts\get_entity_rank.lua" />
         <None Remove="Scripts\update_entity_score.lua" />
         <EmbeddedResource Include="Scripts\update_entity_score.lua">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

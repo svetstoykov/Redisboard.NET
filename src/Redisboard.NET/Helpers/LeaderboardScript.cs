@@ -9,27 +9,22 @@ namespace Redisboard.NET.Helpers;
 /// </summary>
 internal static class LeaderboardScript
 {
-    /// <summary>
-    /// Retrieves entity keys by range using competition ranking.
-    /// KEYS[1]: Sorted set cache key (leaderboard).
-    /// ARGV[1]: Start index (0-based).
-    /// ARGV[2]: Inclusive end index (0-based).
-    /// ARGV[3]: Competition type (3 = standard, 4 = modified).
-    /// Returns array of [memberIdentifier, memberRank, memberScore].
-    /// </summary>
-    private static readonly Lazy<LuaScript> EntityKeysByRangeWithCompetitionRank =
-        new(() => LuaScript.Prepare(LoadLuaScript("get_entity_keys_by_range_competition_rank.lua")));
+    /// <summary>Loads a single-snapshot entity read.</summary>
+    /// <remarks>
+    /// KEYS: leaderboard, unique scores, metadata. ARGV: query (rank, score, neighbors), ranking type,
+    /// then inclusive zero-based rank bounds, inverted score bounds, or member and neighbor offset.
+    /// Returns rows of [binary member, rank, exact score string, binary metadata or false].
+    /// </remarks>
+    private static readonly Lazy<LuaScript> Entities =
+        new(() => LuaScript.Prepare(LoadLuaScript("get_entities.lua")));
 
-    /// <summary>
-    /// Retrieves entity keys by range using dense ranking.
-    /// KEYS[1]: Sorted set cache key (leaderboard).
-    /// KEYS[2]: Unique scores sorted set cache key.
-    /// ARGV[1]: Start index (0-based).
-    /// ARGV[2]: Inclusive end index (0-based).
-    /// Returns array of [memberIdentifier, memberUniqueRank, memberScore].
-    /// </summary>
-    private static readonly Lazy<LuaScript> EntityKeysByRangeWithDenseRank =
-        new(() => LuaScript.Prepare(LoadLuaScript("get_entity_keys_by_range_dense_rank.lua")));
+    /// <summary>Loads a rank lookup that does not access metadata.</summary>
+    /// <remarks>
+    /// KEYS: leaderboard and unique scores. ARGV: member and ranking type (2, 3, or 4).
+    /// Returns the one-based rank, or false when the member does not exist.
+    /// </remarks>
+    private static readonly Lazy<LuaScript> EntityRank =
+        new(() => LuaScript.Prepare(LoadLuaScript("get_entity_rank.lua")));
 
     /// <summary>
     /// Updates an entity's score in the leaderboard and maintains the unique scores set.
@@ -68,19 +63,13 @@ internal static class LeaderboardScript
     private static readonly Lazy<LuaScript> DeleteEntitiesBatch =
         new(() => LuaScript.Prepare(LoadLuaScript("delete_entities_batch.lua")));
 
-    /// <summary>
-    /// Gets the pre-compiled Lua script for retrieving entity keys by range with competition ranking.
-    /// </summary>
-    /// <returns>The prepared Lua script.</returns>
-    public static LuaScript ForEntityKeysByRangeWithCompetitionRank()
-        => EntityKeysByRangeWithCompetitionRank.Value;
+    /// <summary>Gets the prepared script for atomic entity reads.</summary>
+    /// <returns>A read-only script that returns ranking data and metadata together.</returns>
+    public static LuaScript ForEntities() => Entities.Value;
 
-    /// <summary>
-    /// Gets the pre-compiled Lua script for retrieving entity keys by range with dense ranking.
-    /// </summary>
-    /// <returns>The prepared Lua script.</returns>
-    public static LuaScript ForEntityKeysByRangeWithDenseRank()
-        => EntityKeysByRangeWithDenseRank.Value;
+    /// <summary>Gets the prepared script for atomic rank-only reads.</summary>
+    /// <returns>A read-only script that returns a rank without fetching metadata.</returns>
+    public static LuaScript ForEntityRank() => EntityRank.Value;
 
     /// <summary>
     /// Gets the pre-compiled Lua script for updating an entity's score.

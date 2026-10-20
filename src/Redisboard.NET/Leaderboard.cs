@@ -2,7 +2,6 @@ using System.Globalization;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
 using Redisboard.NET.Interfaces;
-using Redisboard.NET.Models;
 using ILeaderboardSerializer = Redisboard.NET.Serialization.ILeaderboardSerializer;
 using StackExchange.Redis;
 
@@ -334,7 +333,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="cancellationToken">Cancels operation before or during downstream leaderboard reads.</param>
     /// <returns>Array containing target entity and nearby entities ordered by rank, or an empty array when target entity does not exist.</returns>
     /// <remarks>
-    /// Window size adapts when target entity is near top of leaderboard so returned data never requests negative rank positions.
+    /// A read-only Lua script resolves the target position, neighboring scores, ranks, and metadata atomically.
+    /// The window is clamped at the top of the leaderboard.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or <paramref name="entityKey"/> is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entityKey"/> is empty.</exception>
@@ -352,18 +352,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidIdentityKey(entityKey);
         Guard.AgainstInvalidOffset(offset);
 
-        var playerIndex = await this._redis.SortedSetRankAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
-
-        if (playerIndex == null) return [];
-
-        var startIndex = Math.Max(playerIndex.Value - offset, 0);
-
-        var endIndex = playerIndex.Value > long.MaxValue - offset
-            ? long.MaxValue
-            : playerIndex.Value + offset;
-
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, endIndex, rankingType, cancellationToken);
+        return await this.ReadEntitiesAsync(leaderboardKey, "neighbors", entityKey, offset, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -375,6 +364,11 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="rankingType">Ranking algorithm used to populate <see cref="ILeaderboardEntity.Rank"/> on returned entities.</param>
     /// <param name="cancellationToken">Cancels operation before or during downstream leaderboard reads.</param>
     /// <returns>Entities that match requested score range, ordered by rank, or an empty array when no entries match.</returns>
+    /// <remarks>
+    /// A read-only Lua script selects matching scores and returns ranks and metadata in one snapshot.
+    /// Matching keys cross the network only with their returned entities. Wide ranges return every matching
+    /// entity and therefore increase Redis script time, response size, and client allocations.
+    /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="minScore"/> or <paramref name="maxScore"/> is negative.</exception>
     /// <exception cref="InvalidOperationException">Thrown when <paramref name="minScore"/> is greater than <paramref name="maxScore"/>.</exception>
@@ -392,20 +386,9 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidScoreRangeLimit(maxScore);
         Guard.AgainstInvalidScoreRange(minScore, maxScore);
 
-        var invertedMaxScore = -minScore;
-        var invertedMinScore = -maxScore;
-
-        var entitiesInRange = await this._redis.SortedSetRangeByScoreAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), invertedMinScore, invertedMaxScore);
-
-        if (!entitiesInRange.Any()) return [];
-
-        var startIndex = await this._redis.SortedSetRankAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), entitiesInRange.First());
-
-        var endIndex = startIndex!.Value + entitiesInRange.Length - 1;
-
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex!.Value, endIndex, rankingType, cancellationToken);
+        RedisValue lowerBound = double.IsPositiveInfinity(maxScore) ? "-inf" : (RedisValue)(-maxScore);
+        RedisValue upperBound = double.IsPositiveInfinity(minScore) ? "-inf" : (RedisValue)(-minScore);
+        return await this.ReadEntitiesAsync(leaderboardKey, "score", lowerBound, upperBound, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -419,6 +402,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <returns>Entities within requested rank range ordered by rank.</returns>
     /// <remarks>
     /// Rank values are one-based at API boundary even though Redis sorted set indexes are zero-based internally.
+    /// A read-only Lua script reads scores, ranks, and metadata in one snapshot, preventing concurrent writes
+    /// from mixing entity data from different leaderboard states.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="startRank"/> is less than 1 or <paramref name="endRank"/> is less than <paramref name="startRank"/>.</exception>
@@ -439,7 +424,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var startIndex = startRank - 1;
         var endIndex = endRank - 1;
 
-        return await this.GetLeaderboardAsync(leaderboardKey, startIndex, endIndex, rankingType, cancellationToken);
+        return await this.ReadEntitiesAsync(leaderboardKey, "rank", startIndex, endIndex, rankingType, cancellationToken);
     }
 
     /// <summary>
@@ -475,8 +460,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="cancellationToken">Cancels operation before or during downstream leaderboard reads.</param>
     /// <returns>One-based rank for entity, or <see langword="null"/> when entity does not exist.</returns>
     /// <remarks>
-    /// Default ranking resolves directly from Redis rank indexes. Other ranking modes load the entity through
-    /// the shared leaderboard read path so tie-aware rank semantics stay consistent across APIs.
+    /// Default ranking resolves directly from Redis rank indexes. Other ranking modes calculate the rank in one
+    /// read-only Lua script without fetching or deserializing entity metadata.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or <paramref name="entityKey"/> is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="entityKey"/> is empty.</exception>
@@ -492,16 +477,21 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
         Guard.AgainstInvalidIdentityKey(entityKey);
 
-        var playerIndex = await this._redis.SortedSetRankAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateRankingType(rankingType);
 
-        if (playerIndex == null) return null;
+        if (rankingType == RankingType.Default)
+        {
+            var index = await this._redis.SortedSetRankAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey), entityKey);
+            cancellationToken.ThrowIfCancellationRequested();
+            return index.HasValue ? index.Value + 1 : null;
+        }
 
-        if (rankingType == RankingType.Default) return playerIndex.Value + 1;
-
-        var entity = await this.GetLeaderboardAsync(leaderboardKey, playerIndex.Value, playerIndex.Value, rankingType, cancellationToken);
-
-        return entity.First().Rank;
+        RedisKey[] keys = [CacheKey.ForLeaderboardSortedSet(leaderboardKey), CacheKey.ForUniqueScoreSortedSet(leaderboardKey)];
+        RedisValue[] args = [entityKey, (int)rankingType];
+        var result = await this._redis.ScriptEvaluateReadOnlyAsync(LeaderboardScript.ForEntityRank().ExecutableScript, keys, args);
+        cancellationToken.ThrowIfCancellationRequested();
+        return result.IsNull ? null : (long)result;
     }
 
     /// <summary>
@@ -651,127 +641,50 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         await this._redis.ScriptEvaluateAsync(script, keys, args, commandFlags);
     }
     
-    private async Task<TEntity[]> GetLeaderboardAsync(
-        RedisValue leaderboardKey, long startIndex, long endIndex, RankingType rankingType,
-        CancellationToken cancellationToken = default)
+    private async Task<TEntity[]> ReadEntitiesAsync(
+        RedisValue leaderboardKey, string query, RedisValue first, RedisValue second, RankingType rankingType,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var entityKeysWithRanking = rankingType switch
-        {
-            RankingType.Default
-                => await this.GetEntityKeysWithDefaultRanking(leaderboardKey, startIndex, endIndex),
-            RankingType.DenseRank
-                => await this.GetEntityKeysWithDenseRanking(leaderboardKey, startIndex, endIndex),
-            RankingType.ModifiedCompetition or RankingType.StandardCompetition
-                => await this.GetEntityKeysWithCompetitionRanking(leaderboardKey, startIndex, endIndex, (int)rankingType),
-            _ => throw new KeyNotFoundException(
-                $"Ranking type not found! Valid ranking types are: " +
-                $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(t => $"{t} ({(int)t})"))}.")
-        };
-
-        return await this.GetEntitiesDataAsync(leaderboardKey, entityKeysWithRanking, cancellationToken);
-    }
-
-    private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDefaultRanking(
-        RedisValue leaderboardKey, long startIndex, long endIndex)
-    {
-        var result = new Dictionary<RedisValue, LeaderboardStats>();
-
-        var entities = await this._redis.SortedSetRangeByRankWithScoresAsync(
-            CacheKey.ForLeaderboardSortedSet(leaderboardKey), startIndex, endIndex);
-
-        var rankForTopPlayer = startIndex + 1;
-
-        for (var i = 0; i < entities.Length; i++)
-            result.Add(entities[i].Element, new LeaderboardStats(rankForTopPlayer + i, entities[i].Score));
-
-        return result;
-    }
-
-    private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithDenseRanking(
-        RedisValue leaderboardKey, long startIndex, long endIndex)
-    {
-        var script = LeaderboardScript.ForEntityKeysByRangeWithDenseRank().ExecutableScript;
+        ValidateRankingType(rankingType);
 
         RedisKey[] keys =
         [
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
         ];
-
-        RedisValue[] args = [startIndex, endIndex];
-
-        return await this.EvaluateScriptToDictionaryAsync(script, keys, args);
-    }
-
-    private async Task<Dictionary<RedisValue, LeaderboardStats>> GetEntityKeysWithCompetitionRanking(
-        RedisValue leaderboardKey, long startIndex, long endIndex, int rankingType)
-    {
-        var script = LeaderboardScript.ForEntityKeysByRangeWithCompetitionRank().ExecutableScript;
-
-        RedisKey[] keys = [CacheKey.ForLeaderboardSortedSet(leaderboardKey)];
-
-        RedisValue[] args = [startIndex, endIndex, rankingType];
-
-        return await this.EvaluateScriptToDictionaryAsync(script, keys, args);
-    }
-
-    private async Task<Dictionary<RedisValue, LeaderboardStats>> EvaluateScriptToDictionaryAsync(
-        string script, RedisKey[] keys, RedisValue[] args)
-    {
-        var results = await this._redis.ScriptEvaluateReadOnlyAsync(script, keys, args);
-
-        return ((RedisResult[])results ?? [])
-            .Select(r => (string[])r)
-            .ToDictionary(r => new RedisValue(r[0]), r => new LeaderboardStats(
-                long.Parse(r[1], CultureInfo.InvariantCulture),
-                double.Parse(r[2], CultureInfo.InvariantCulture)));
-    }
-
-    private async Task<TEntity[]> GetEntitiesDataAsync(
-        RedisValue leaderboardKey,
-        Dictionary<RedisValue, LeaderboardStats> keysWithLeaderboardMetrics,
-        CancellationToken cancellationToken = default)
-    {
+        RedisValue[] args = [query, (int)rankingType, first, second];
+        var result = await this._redis.ScriptEvaluateReadOnlyAsync(LeaderboardScript.ForEntities().ExecutableScript, keys, args);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var hashEntryKeys = keysWithLeaderboardMetrics.Select(p => p.Key).ToArray();
-
-        var entityData = await this._redis.HashGetAsync(
-            CacheKey.ForEntityDataHashSet(leaderboardKey), hashEntryKeys);
-
-        var leaderboard = new TEntity[keysWithLeaderboardMetrics.Count];
-
-        for (var i = 0; i < entityData.Length; i++)
+        var rows = (RedisResult[])result ?? [];
+        var entities = new TEntity[rows.Length];
+        for (var i = 0; i < rows.Length; i++)
         {
-            var rawJson = entityData[i];
-            var stats = keysWithLeaderboardMetrics[hashEntryKeys[i]];
-
-            TEntity entity;
-
-            if (rawJson.HasValue && !rawJson.IsNullOrEmpty)
-            {
-                entity = this._serializer.Deserialize<TEntity>((byte[])rawJson!);
-            }
-            else
-            {
-                // Entity was added without metadata — create empty instance and populate from Redis
-                entity = new TEntity();
-                EntityTypeAccessor<TEntity>.SetKey(entity, hashEntryKeys[i]);
-                EntityTypeAccessor<TEntity>.SetScore(entity, NormalizeScore(stats.Score));
-            }
-
-            entity.Rank = stats.Rank;
-
-            // Ensure score is the authoritative value from Redis (in case JSON is stale)
-            EntityTypeAccessor<TEntity>.SetScore(entity, NormalizeScore(stats.Score));
-            EntityTypeAccessor<TEntity>.SetKey(entity, hashEntryKeys[i]);
-
-            leaderboard[i] = entity;
+            cancellationToken.ThrowIfCancellationRequested();
+            var row = (RedisResult[])rows[i];
+            var member = (RedisValue)row[0];
+            var rank = (long)row[1];
+            var score = double.Parse((string)row[2], CultureInfo.InvariantCulture);
+            var metadata = (byte[])row[3];
+            var entity = metadata is { Length: > 0 }
+                ? this._serializer.Deserialize<TEntity>(metadata)
+                : new TEntity();
+            entity.Rank = rank;
+            EntityTypeAccessor<TEntity>.SetScore(entity, NormalizeScore(score));
+            EntityTypeAccessor<TEntity>.SetKey(entity, member);
+            entities[i] = entity;
         }
+        return entities;
+    }
 
-        return leaderboard;
+    private static void ValidateRankingType(RankingType rankingType)
+    {
+        if (rankingType is not (RankingType.Default or RankingType.DenseRank or RankingType.StandardCompetition or RankingType.ModifiedCompetition))
+            throw new KeyNotFoundException(
+                $"Ranking type not found! Valid ranking types are: " +
+                $"{string.Join(", ", Enum.GetValues(typeof(RankingType)).Cast<RankingType>().Select(t => $"{t} ({(int)t})"))}.");
     }
 
     private static double NormalizeScore(double score)

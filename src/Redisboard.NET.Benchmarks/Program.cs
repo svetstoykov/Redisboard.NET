@@ -1,9 +1,4 @@
-﻿using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Running;
 using Redisboard.NET.Benchmarks;
-using Redisboard.NET.Benchmarks.Helpers;
 
-await BenchmarkLeaderboardHelper.InitializeBenchmarksLeaderboardAsync();
-
-BenchmarkRunner.Run<GetEntityAndNeighboursBenchmarks>();
-
-await BenchmarkLeaderboardHelper.CleanUpBenchmarksLeaderboardAsync();
+BenchmarkSwitcher.FromAssembly(typeof(LeaderboardReadBenchmarks).Assembly).Run(args);
