@@ -63,6 +63,15 @@ public class KeyConfigurationTests
                 var neighbours = await leaderboard.GetEntityAndNeighboursAsync(key, "one", rankingType: ranking);
                 Assert.NotNull(neighbours);
             }
+            Assert.NotNull(await leaderboard.GetEntityAsync(key, "one", RankingType.DenseRank));
+            Assert.Equal(2, (await leaderboard.GetEntitiesByKeysAsync(key, ["one", "two"], RankingType.DenseRank)).Length);
+            var page = await leaderboard.GetPageAsync(key, 1, 10, RankingType.DenseRank);
+            Assert.Equal(await leaderboard.GetSizeAsync(key), page.TotalCount);
+            Assert.Equal(page.TotalCount, page.Entities.LongLength);
+            Assert.True(await leaderboard.ExpireAsync(key, TimeSpan.FromMinutes(1)));
+            var deadlines = await Task.WhenAll(keys.Select(k => database.KeyExpireTimeAsync(k)));
+            Assert.All(deadlines, value => Assert.Equal(deadlines[0], value));
+            Assert.True(await leaderboard.ExpireAsync(key, null));
             await leaderboard.DeleteEntityAsync(key, "one");
             await leaderboard.DeleteEntitiesAsync(key, ["two"]);
             Assert.Equal(0, await leaderboard.GetSizeAsync(key));

@@ -1,12 +1,37 @@
 using Redisboard.NET.Common.Models;
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Helpers;
+using Redisboard.NET.Serialization;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Tests.Integration;
 
 public class ReadAndExpiryTests(LeaderboardFixture fixture) : LeaderboardTestBase(fixture)
 {
+    [Fact]
+    public async Task NewReadsAndExpiry_UseConfiguredNamespace()
+    {
+        using var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+        var options = new LeaderboardOptions { KeyPrefix = $"rb009:{Guid.NewGuid():N}:", UseClusterHashTags = true };
+        var configured = new Leaderboard<Player>(connection.GetDatabase(9), new MemoryPackLeaderboardSerializer(), options);
+        await configured.AddEntityAsync(Key, new Player { Id = "a", Score = 100 });
+        try
+        {
+            var entity = await configured.GetEntityAsync(Key, "a");
+            var batch = await configured.GetEntitiesByKeysAsync(Key, ["a"]);
+            var page = await configured.GetPageAsync(Key, 1, 10);
+
+            Assert.NotNull(entity);
+            Assert.Single(batch);
+            Assert.Single(page.Entities);
+            Assert.Equal(1, page.TotalCount);
+            Assert.Null(await Leaderboard.GetEntityAsync(Key, "a"));
+            Assert.True(await configured.ExpireAsync(Key, TimeSpan.Zero));
+            Assert.Equal(0, await configured.GetSizeAsync(Key));
+        }
+        finally { await configured.DeleteAsync(Key); }
+    }
+
     [Theory]
     [InlineData(RankingType.Default, 3)]
     [InlineData(RankingType.DenseRank, 2)]

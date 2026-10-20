@@ -73,8 +73,8 @@ public partial class Leaderboard<TEntity>
 
     private RedisKey[] GetReadKeys(RedisValue leaderboardKey) =>
     [
-        CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-        CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
-        CacheKey.ForEntityDataHashSet(leaderboardKey)
+        CacheKey.ForLeaderboardSortedSet(leaderboardKey, this._options),
+        CacheKey.ForUniqueScoreSortedSet(leaderboardKey, this._options),
+        CacheKey.ForEntityDataHashSet(leaderboardKey, this._options)
     ];
 }
