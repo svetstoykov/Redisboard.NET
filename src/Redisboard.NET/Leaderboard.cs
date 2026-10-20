@@ -26,7 +26,7 @@ namespace Redisboard.NET;
 /// parameterless constructor, and declare exactly one key property and one score property by using
 /// <see cref="Attributes.LeaderboardKeyAttribute"/> and <see cref="Attributes.LeaderboardScoreAttribute"/>.
 /// </typeparam>
-public class Leaderboard<TEntity> : ILeaderboard<TEntity>
+public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity, new()
 {
     /// <summary>

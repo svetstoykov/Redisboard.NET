@@ -1,4 +1,5 @@
 using Redisboard.NET.Enumerations;
+using Redisboard.NET.Models;
 using StackExchange.Redis;
 
 namespace Redisboard.NET.Interfaces;
@@ -26,6 +27,94 @@ namespace Redisboard.NET.Interfaces;
 public interface ILeaderboard<TEntity>
     where TEntity : ILeaderboardEntity, new()
 {
+    /// <summary>Adds a signed delta to an existing entity's score atomically.</summary>
+    /// <remarks>
+    /// <para>Negative deltas decrement the score. Missing or incomplete entities are unchanged and return null score and rank.
+    /// Arithmetic producing a negative or nonfinite score fails before any write. Metadata remains unchanged.</para>
+    /// <para>One Lua execution maintains the dense-score index and returns the post-write rank in the requested
+    /// <see cref="RankingType"/>. See <see href="https://redis.io/docs/latest/develop/programmability/eval-intro/">Redis script atomicity</see>.
+    /// Cancellation is observed before dispatch; once dispatched, completion is reported even if the token is canceled.</para>
+    /// </remarks>
+    /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
+    /// <param name="entityKey">Existing entity identifier; must be a valid identity key.</param>
+    /// <param name="delta">Finite signed amount to add.</param>
+    /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
+    /// <param name="cancellationToken">Cancels before script dispatch.</param>
+    /// <returns>Applied status and the score and rank from the same atomic snapshot.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
+    /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, delta is nonfinite, or the resulting score is negative or nonfinite.</exception>
+    /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
+    Task<ScoreUpdateResult> IncrementEntityScoreAsync(
+        RedisValue leaderboardKey, RedisValue entityKey, double delta,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Subtracts a non-negative amount from an existing entity's score atomically.</summary>
+    /// <remarks>Uses the same atomicity, metadata preservation, missing-entity behavior, and cancellation contract as
+    /// <see cref="IncrementEntityScoreAsync"/>. A resulting negative or nonfinite score fails before any write.</remarks>
+    /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
+    /// <param name="entityKey">Existing entity identifier; must be a valid identity key.</param>
+    /// <param name="amount">Finite, non-negative amount to subtract.</param>
+    /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
+    /// <param name="cancellationToken">Cancels before script dispatch.</param>
+    /// <returns>Applied status and the score and rank from the same atomic snapshot.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
+    /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, amount is negative or nonfinite, or the resulting score is negative or nonfinite.</exception>
+    /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
+    Task<ScoreUpdateResult> DecrementEntityScoreAsync(
+        RedisValue leaderboardKey, RedisValue entityKey, double amount,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Conditionally replaces an existing entity's score without replacing metadata.</summary>
+    /// <remarks>
+    /// <para>The condition and resulting score and rank are evaluated in one Redis script. Higher and lower compare
+    /// caller-visible scores strictly; equal scores reject both. Rejected writes return the unchanged score and rank.</para>
+    /// <para>Missing or incomplete entities remain unchanged with null score and rank, including for
+    /// <see cref="ScoreUpdateCondition.NotExists"/>. Use <see cref="AddEntityConditionalAsync"/> to insert with metadata.
+    /// Cancellation is observed before dispatch only.</para>
+    /// </remarks>
+    /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
+    /// <param name="entityKey">Existing entity identifier; must be a valid identity key.</param>
+    /// <param name="score">Finite, non-negative replacement score.</param>
+    /// <param name="condition">Condition governing acceptance of the replacement.</param>
+    /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
+    /// <param name="cancellationToken">Cancels before script dispatch.</param>
+    /// <returns>Whether the write was accepted, together with the resulting score and rank.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when either identifier is missing.</exception>
+    /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is negative or nonfinite, or condition is unknown.</exception>
+    /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
+    Task<ScoreUpdateResult> UpdateEntityScoreConditionalAsync(
+        RedisValue leaderboardKey, RedisValue entityKey, double score, ScoreUpdateCondition condition,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Conditionally inserts or replaces an entity and returns its resulting score and rank.</summary>
+    /// <remarks>
+    /// <para>Acceptance atomically updates ranking, metadata, and the dense-score index. Rejection preserves all three.
+    /// <see cref="ScoreUpdateCondition.Higher"/> and <see cref="ScoreUpdateCondition.Lower"/> insert absent entities;
+    /// for existing entities they compare strictly against the stored caller-visible score.</para>
+    /// <para>Incomplete legacy records are left unchanged and return null score and rank. Metadata serialization happens
+    /// before dispatch even when Redis later rejects the condition. Cancellation is observed before dispatch only.</para>
+    /// </remarks>
+    /// <param name="leaderboardKey">Leaderboard identifier; must be a valid identity key.</param>
+    /// <param name="entity">Entity supplying valid identity, finite non-negative score, and serialized metadata.</param>
+    /// <param name="condition">Condition governing acceptance of the complete entity write.</param>
+    /// <param name="rankingType">Ranking rules for the returned snapshot; defaults to unique ordinal ranks.</param>
+    /// <param name="cancellationToken">Cancels before script dispatch.</param>
+    /// <returns>Whether the write was accepted, together with the resulting score and rank.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when entity or either identifier is missing.</exception>
+    /// <exception cref="ArgumentException">Thrown when either identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when a numeric identifier is nonpositive, score is negative or nonfinite, or condition is unknown.</exception>
+    /// <exception cref="KeyNotFoundException">Thrown when the ranking type is unknown.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when cancellation is requested before dispatch.</exception>
+    Task<ScoreUpdateResult> AddEntityConditionalAsync(
+        RedisValue leaderboardKey, TEntity entity, ScoreUpdateCondition condition,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Adds an entity to a leaderboard.
     /// </summary>

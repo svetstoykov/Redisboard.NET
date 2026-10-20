@@ -200,6 +200,48 @@ Cluster mode assigns all three structures for each leaderboard to one hash slot.
 
 Settings are copied at construction or DI registration. Changing prefix or cluster mode selects different Redis keys: **existing data is not migrated**. Keep existing settings to retain access, or migrate all three structures together during a controlled cutover. Default mode preserves `sorted_set_leaderboard_<identity>`, `entity_data_hashset_leaderboard_<identity>`, and `sorted_set_unique_score_<identity>`.
 
+## Atomic score writes
+
+Use atomic arithmetic instead of reading a score, changing it in application code, then writing it back.
+Concurrent increments cannot overwrite one another. Negative deltas decrement; the explicit decrement
+method takes a non-negative amount. Arithmetic requires an existing entity with metadata. Missing or
+incomplete entities remain unchanged, returning `Applied = false` with null score and rank.
+
+```cs
+var earned = await leaderboard.IncrementEntityScoreAsync(leaderboardKey, "player1", 10);
+var spent = await leaderboard.DecrementEntityScoreAsync(leaderboardKey, "player1", 5);
+
+// Retain personal best without a read/write race; preserve metadata.
+var best = await leaderboard.UpdateEntityScoreConditionalAsync(
+    leaderboardKey, "player1", 200, ScoreUpdateCondition.Higher, RankingType.DenseRank);
+
+// Insert only when absent, including metadata.
+var joined = await leaderboard.AddEntityConditionalAsync(
+    leaderboardKey, new Player { Id = "player3", Score = 10, Username = "Cara" },
+    ScoreUpdateCondition.NotExists);
+```
+
+`ScoreUpdateCondition` supports `Always`, `Exists`, `NotExists`, `Higher`, and `Lower`.
+Higher/lower compare scores strictly, so equal values reject both. Conditional entity writes insert
+absent entities for `Always`, `NotExists`, `Higher`, and `Lower`; accepted replacements update both score
+and metadata. Conditional score-only writes always require an existing complete entity.
+
+Each operation returns `ScoreUpdateResult` (`Redisboard.NET.Models`) containing `Applied`, `Score`,
+and one-based `Rank`, captured in the same Redis script as the write. Rejected conditions return the
+unchanged score and rank; accepted equal-score writes still report `Applied = true`. Results use the
+requested `RankingType`, defaulting to ordinal ranking. Import `Redisboard.NET.Enumerations` for both enums.
+
+Scores must remain finite and non-negative. Invalid deltas, arithmetic overflow, and negative results
+throw `ArgumentOutOfRangeException` before modifying ranking data or its dense-score index. Cancellation
+is checked before dispatch; after dispatch the operation reports its Redis result. Existing write APIs
+retain their behavior and signatures.
+
+Applications providing custom `ILeaderboard<TEntity>` implementations must implement the four new
+members: `IncrementEntityScoreAsync`, `DecrementEntityScoreAsync`,
+`UpdateEntityScoreConditionalAsync`, and `AddEntityConditionalAsync`. This interface expansion is an
+intentional compatibility change from 1.0.3. Package validation suppresses only the corresponding
+member-specific CP0006 diagnostics for both target frameworks; other compatibility checks remain active.
+
 ## Entity Requirements
 
 ### MemoryPack Serialization

@@ -63,6 +63,13 @@ internal static class LeaderboardScript
     private static readonly Lazy<LuaScript> DeleteEntitiesBatch =
         new(() => LuaScript.Prepare(LoadLuaScript("delete_entities_batch.lua")));
 
+    private static readonly Lazy<LuaScript> MutateEntityScore =
+        new(() => LuaScript.Prepare(LoadLuaScript("mutate_entity_score.lua")));
+
+    /// <summary>Gets the script for atomic conditional writes and score arithmetic.</summary>
+    /// <returns>The script returning applied status, canonical stored score, and rank.</returns>
+    public static LuaScript ForMutateEntityScore() => MutateEntityScore.Value;
+
     /// <summary>Gets the prepared script for atomic entity reads.</summary>
     /// <returns>A read-only script that returns ranking data and metadata together.</returns>
     public static LuaScript ForEntities() => Entities.Value;
