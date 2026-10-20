@@ -230,7 +230,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMinScore_ThrowsArgumentException()
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMinScore_ThrowsArgumentOutOfRangeException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
@@ -239,7 +239,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMaxScore_ThrowsArgumentException()
+    public async Task GetEntitiesByScoreRangeAsync_WithInvalidMaxScore_ThrowsArgumentOutOfRangeException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
@@ -432,7 +432,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task GetSizeAsync_WithInvalidLeaderboardKey_ThrowsArgumentException()
+    public async Task GetSizeAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
@@ -466,7 +466,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task GetEntityRankAsync_WithInvalidLeaderboardKey_ThrowsArgumentException()
+    public async Task GetEntityRankAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
         var entityKey = Guid.NewGuid().ToString();
 
@@ -477,7 +477,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task GetEntityRankAsync_WithInvalidEntityKey_ThrowsArgumentException()
+    public async Task GetEntityRankAsync_WithInvalidEntityKey_ThrowsArgumentNullException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
@@ -486,7 +486,7 @@ public class LeaderboardTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WithInvalidLeaderboardKey_ThrowsArgumentException()
+    public async Task DeleteAsync_WithInvalidLeaderboardKey_ThrowsArgumentNullException()
     {
         var leaderboard = new Leaderboard<Player>(_mockRedis.Object, new MemoryPackLeaderboardSerializer());
 
