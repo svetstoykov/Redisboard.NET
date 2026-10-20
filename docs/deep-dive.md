@@ -66,13 +66,7 @@ This is exactly why sorted sets scale so well: a leaderboard with 500,000 player
 
 One catch: Redis sorts in **ascending** order by default. For a leaderboard, you want the *highest* score at the top. The common trick — and the one Redisboard.NET uses — is to **negate the scores** before storing them. A score of `4200` is stored as `-4200`. Now the highest real score has the lowest stored value, so it naturally appears first in ascending order.
 
-```csharp
-// Inside Leaderboard.cs — score is negated before every write
-private static double ToRedisScore(double score) => -score;
-
-// And un-negated on every read, so callers always see positive numbers
-private static double FromRedisScore(double score) => -score;
-```
+`Leaderboard<TEntity>` negates scores inline before writes and restores their sign when reading scores from Redis.
 
 This is a simple but important detail. If you ever inspect a leaderboard directly in Redis, all the scores will be negative — that's intentional.
 
@@ -149,7 +143,7 @@ Bob and Carol are tied. Dave and Eve are tied. What rank is Bob? What rank is Da
 
 **Standard Competition / "1224" (1, 2, 2, 4, 4)** — Tied players share the rank of the *first* player with that score. There's a gap after each tied group. This is how Olympic medals work.
 
-**Modified Competition / "1334" (1, 3, 3, 4, 4)** — Wait, that's wrong. Let me redo: Tied players share the rank of the *last* player with that score. Dave and Eve would both be rank 4 (last position of the 80-score group). Bob and Carol would both be rank 3 (last position of the 90-score group). This variant is used in some academic grading systems.
+**Modified Competition / "1334" (1, 3, 3, 5, 5)** — Tied players share the rank of the *last* player with that score. Bob and Carol both receive rank 3; Dave and Eve both receive rank 5.
 
 Redisboard.NET implements all four, and the choice is a simple enum parameter on any read call:
 

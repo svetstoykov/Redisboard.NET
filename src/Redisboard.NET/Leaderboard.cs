@@ -57,8 +57,10 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// Use this overload when application code already controls creation of <see cref="IDatabase"/> and needs
     /// <see cref="Leaderboard{TEntity}"/> to reuse that database selection and connection lifetime.
     /// </remarks>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when the entity key or score configuration is invalid.</exception>
     public Leaderboard(IDatabase redis, ILeaderboardSerializer serializer)
     {
+        EntityTypeAccessor<TEntity>.Validate();
         this._redis = redis;
         this._serializer = serializer;
     }
@@ -68,15 +70,16 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </summary>
     /// <param name="connectionMultiplexer">Redis multiplexer used to resolve the target database.</param>
     /// <param name="serializer">Serializes and deserializes entity metadata stored alongside ranking data.</param>
-    /// <param name="databaseIndex">Zero-based Redis database index passed to <see cref="IConnectionMultiplexer.GetDatabase(int, object)"/>.</param>
+    /// <param name="databaseIndex">Zero-based Redis database index, or -1 to use the configured default, passed to <see cref="IConnectionMultiplexer.GetDatabase(int, object)"/>.</param>
     /// <remarks>
     /// Use this overload when dependency injection or application startup manages the shared
     /// <see cref="IConnectionMultiplexer"/> and leaderboard instances should select their own database index.
     /// </remarks>
+    /// <exception cref="Exceptions.LeaderboardConfigurationException">Thrown when the entity key or score configuration is invalid.</exception>
     public Leaderboard(
         IConnectionMultiplexer connectionMultiplexer,
         ILeaderboardSerializer serializer,
-        int databaseIndex = 0)
+        int databaseIndex = -1)
         : this(connectionMultiplexer.GetDatabase(databaseIndex), serializer)
     {
     }
@@ -223,6 +226,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// This method updates ranking state only. Stored metadata remains unchanged until
     /// <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/> runs.
     /// </remarks>
@@ -255,6 +259,7 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// This method updates ranking state only. Stored metadata remains unchanged until
     /// <see cref="UpdateEntityMetadataAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/> runs.
     /// </remarks>
@@ -281,14 +286,16 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
     /// <param name="entity">Entity whose configured key identifies the stored member and whose serialized state becomes the new metadata payload.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
-    /// <param name="cancellationToken">Cancels operation before Redis hash update begins.</param>
+    /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
+    /// Missing entities or records without both ranking and metadata are left unchanged atomically.
     /// Ranking order does not change. Call
     /// <see cref="UpdateEntityScoreAsync(StackExchange.Redis.RedisValue,TEntity,bool,System.Threading.CancellationToken)"/> when score changes must also be persisted.
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> or entity key is missing.</exception>
     /// <exception cref="ArgumentException">Thrown when entity key is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when entity key is non-positive.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled before script execution.</exception>
     public async Task UpdateEntityMetadataAsync(
         RedisValue leaderboardKey,
         TEntity entity,
@@ -304,7 +311,16 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
 
         var commandFlags = fireAndForget ? CommandFlags.FireAndForget : CommandFlags.None;
 
-        await this._redis.HashSetAsync(CacheKey.ForEntityDataHashSet(leaderboardKey), entityKey, metadata, flags: commandFlags);
+        RedisKey[] keys =
+        [
+            CacheKey.ForLeaderboardSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
+        ];
+        RedisValue[] args = [entityKey, metadata];
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await this._redis.ScriptEvaluateAsync(
+            LeaderboardScript.ForUpdateEntityMetadata().ExecutableScript, keys, args, commandFlags);
     }
 
     /// <summary>
@@ -483,14 +499,15 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard to query.</param>
     /// <param name="cancellationToken">Reserved for API symmetry. This implementation does not observe it after validation.</param>
-    /// <returns>Total number of entities with metadata stored for <paramref name="leaderboardKey"/>.</returns>
+    /// <returns>Total number of ranked members stored for <paramref name="leaderboardKey"/>.</returns>
+    /// <remarks>Counts the authoritative ranking set, including legacy members whose metadata is absent.</remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="leaderboardKey"/> is missing.</exception>
     public async Task<long> GetSizeAsync(
         RedisValue leaderboardKey,
         CancellationToken cancellationToken = default)
     {
         Guard.AgainstInvalidIdentityKey(leaderboardKey);
-        return await this._redis.HashLengthAsync(CacheKey.ForEntityDataHashSet(leaderboardKey));
+        return await this._redis.SortedSetLengthAsync(CacheKey.ForLeaderboardSortedSet(leaderboardKey));
     }
 
     /// <summary>
@@ -614,7 +631,8 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var keys = new[]
         {
             CacheKey.ForLeaderboardSortedSet(leaderboardKey),
-            CacheKey.ForUniqueScoreSortedSet(leaderboardKey)
+            CacheKey.ForUniqueScoreSortedSet(leaderboardKey),
+            CacheKey.ForEntityDataHashSet(leaderboardKey)
         };
 
         var args = new[] { entityKey, invertedScore };

@@ -9,7 +9,7 @@
 Redisboard.NET is an optimized .NET library designed to handle leaderboards efficiently using Redis. It provides a simple, yet powerful API to create and manage leaderboards with various ranking systems. The library leverages Redis sorted sets for performance and uses LUA scripts for advanced querying capabilities.
 
 > **Want to understand how it works under the hood?**
-> Read the [Architecture Deep Dive](docs/deep-dive.md) — covering the three-structure Redis design, score negation, Lua atomicity, ranking algorithms, serialization, and common pitfalls. A good starting point whether you're evaluating the library or contributing to it.
+> Read the [Architecture Deep Dive](https://github.com/svetstoykov/Redisboard.NET/blob/main/docs/deep-dive.md) — covering the three-structure Redis design, score negation, Lua atomicity, ranking algorithms, serialization, and common pitfalls. A good starting point whether you're evaluating the library or contributing to it.
 
 ## Quick Start
 First up, let's get a Redis server ready. Docker makes this super easy.
@@ -95,13 +95,17 @@ builder.Services.AddLeaderboard<Player>(cfg =>
 {
     cfg.EndPoints.Add("localhost:6379");
     cfg.ClientName = "Development";
-    cfg.DefaultDatabase = 0;
+    cfg.DefaultDatabase = 5;
 });
 ```
 
-*\* Config delegate is not required if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+*\* Omit config delegate if you have already registered your `IConnectionMultiplexer` or `IDatabase` (ref. [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)). `AddLeaderboard` prefers `IConnectionMultiplexer` when both are registered. If it falls back to `IDatabase`, the `databaseIndex` argument is ignored because the database has already been selected.*
+
+Supplying another config delegate after Redis has already been registered throws `ArgumentException` at registration. Register additional entity types without a delegate to reuse that connection.
 
 See StackExchange.Redis configuration docs for more `ConfigurationOptions` settings: [Basics](https://stackexchange.github.io/StackExchange.Redis/Basics.html) and [Configuration](https://stackexchange.github.io/StackExchange.Redis/Configuration.html).
+
+`databaseIndex` defaults to `-1`, honoring `ConfigurationOptions.DefaultDatabase`. Pass an explicit index, including `0`, to override it. Each entity registration retains its own serializer.
 
 Once registered, inject `ILeaderboard<Player>` via the constructor:
 
@@ -131,6 +135,7 @@ Other common APIs:
 // Add many players in one batch operation.
 await leaderboard.AddEntitiesAsync(leaderboardKey, players);
 
+// Updates on missing players are no-ops. Use AddEntityAsync for upserts.
 // Update only score for an existing player with model
 await leaderboard.UpdateEntityScoreAsync(
     leaderboardKey,
@@ -230,7 +235,7 @@ public class SystemTextJsonSerializer : ILeaderboardSerializer
         => JsonSerializer.Deserialize<T>(data)!;
 }
 
-builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, new SystemTextJsonSerializer());
+builder.Services.AddLeaderboard<Player>(cfg => { /* ... */ }, serializer: new SystemTextJsonSerializer());
 
 // Or via manually created object
 
@@ -402,4 +407,4 @@ What these benchmarks show:
 ## Dependencies
 - [MemoryPack](https://github.com/Cysharp/MemoryPack)
 - [StackExchange.Redis](https://github.com/StackExchange/StackExchange.Redis)
-- [Microsoft.Extensions.DependencyInjection](https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.Extensions.DependencyInjection)
+- [Microsoft.Extensions.DependencyInjection.Abstractions](https://github.com/dotnet/runtime/tree/main/src/libraries/Microsoft.Extensions.DependencyInjection.Abstractions)

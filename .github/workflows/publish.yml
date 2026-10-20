@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis
+        image: redis:7.4
         ports:
           - 6379:6379
         options: >-
@@ -24,13 +24,20 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet restore src/Redisboard.NET
-      - run: dotnet restore src/Redisboard.NET.Tests
-      - run: dotnet build src/Redisboard.NET --configuration Release --no-restore
-      - run: dotnet test src/Redisboard.NET.Tests --configuration Release --no-restore
-      - run: dotnet pack src/Redisboard.NET --configuration Release --no-restore --output ./artifacts
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version=$(dotnet msbuild src/Redisboard.NET/Redisboard.NET.csproj -getProperty:PackageVersion)
+          if [[ "${RELEASE_TAG#v}" != "$package_version" ]]; then
+            echo "Release tag '$RELEASE_TAG' does not match package version '$package_version'." >&2
+            exit 1
+          fi
+      - run: dotnet restore src/Redisboard.NET.sln
+      - run: dotnet build src/Redisboard.NET.sln --configuration Release --no-restore
+      - run: dotnet test src/Redisboard.NET.sln --configuration Release --no-build --no-restore
+      - run: dotnet pack src/Redisboard.NET --configuration Release --no-build --no-restore --output ./artifacts
       - run: >
           dotnet nuget push ./artifacts/*.nupkg
           --api-key ${{ secrets.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate

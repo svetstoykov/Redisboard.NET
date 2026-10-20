@@ -30,12 +30,16 @@ internal static class LeaderboardScript
     /// Updates an entity's score in the leaderboard and maintains the unique scores set.
     /// KEYS[1]: Sorted set cache key (leaderboard).
     /// KEYS[2]: Unique scores sorted set cache key.
+    /// KEYS[3]: Metadata hash key; the member must exist in both ranking and metadata.
     /// ARGV[1]: Member identifier.
     /// ARGV[2]: New score.
-    /// Returns the new rank in the unique scores set (1-based).
+    /// Returns the new rank in the unique scores set (1-based), or false when the complete entity does not exist.
     /// </summary>
     private static readonly Lazy<LuaScript> UpdateEntityScore =
         new(() => LuaScript.Prepare(LoadLuaScript("update_entity_score.lua")));
+
+    private static readonly Lazy<LuaScript> UpdateEntityMetadata =
+        new(() => LuaScript.Prepare(LoadLuaScript("update_entity_metadata.lua")));
 
     /// <summary>
     /// Adds multiple entities to the leaderboard in a single atomic operation.
@@ -73,6 +77,11 @@ internal static class LeaderboardScript
     /// <returns>The prepared Lua script.</returns>
     public static LuaScript ForUpdateEntityScore()
         => UpdateEntityScore.Value;
+
+    /// <summary>Gets the script that replaces metadata only for complete existing entities.</summary>
+    /// <returns>The prepared Lua script.</returns>
+    public static LuaScript ForUpdateEntityMetadata()
+        => UpdateEntityMetadata.Value;
 
     /// <summary>
     /// Gets the pre-compiled Lua script for batch adding entities.
