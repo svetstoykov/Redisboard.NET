@@ -690,6 +690,11 @@ public partial class Leaderboard<TEntity> : ILeaderboard<TEntity>
         var result = await this._redis.ScriptEvaluateReadOnlyAsync(LeaderboardScript.ForEntities().ExecutableScript, keys, args);
         cancellationToken.ThrowIfCancellationRequested();
 
+        return this.MapEntityRows(result, cancellationToken);
+    }
+
+    private TEntity[] MapEntityRows(RedisResult result, CancellationToken cancellationToken)
+    {
         var rows = (RedisResult[])result ?? [];
         var entities = new TEntity[rows.Length];
         for (var i = 0; i < rows.Length; i++)

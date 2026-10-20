@@ -1,3 +1,4 @@
+#nullable enable
 using Redisboard.NET.Enumerations;
 using Redisboard.NET.Models;
 using StackExchange.Redis;
@@ -114,6 +115,64 @@ public interface ILeaderboard<TEntity>
     Task<ScoreUpdateResult> AddEntityConditionalAsync(
         RedisValue leaderboardKey, TEntity entity, ScoreUpdateCondition condition,
         RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns one entity with its current score and rank.</summary>
+    /// <param name="leaderboardKey">The leaderboard identifier.</param>
+    /// <param name="entityKey">The member identifier.</param>
+    /// <param name="rankingType">The algorithm used to populate the entity rank.</param>
+    /// <param name="cancellationToken">Cancels before execution or while mapping the response.</param>
+    /// <returns>The entity, or null when its ranking entry is absent.</returns>
+    /// <remarks>Reads payload, score, and rank in one Redis snapshot. Legacy ranking entries without metadata return a new entity populated with key, score, and rank.</remarks>
+    /// <exception cref="ArgumentNullException">A required key is null.</exception>
+    /// <exception cref="ArgumentException">A key is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A numeric key is nonpositive.</exception>
+    /// <exception cref="KeyNotFoundException">The ranking type is unsupported.</exception>
+    /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
+    Task<TEntity?> GetEntityAsync(RedisValue leaderboardKey, RedisValue entityKey,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns entities selected by member identifiers in one snapshot.</summary>
+    /// <param name="leaderboardKey">The leaderboard identifier.</param>
+    /// <param name="entityKeys">Between one and 10,000 valid member identifiers.</param>
+    /// <param name="rankingType">The algorithm used to populate ranks.</param>
+    /// <param name="cancellationToken">Cancels before execution or while mapping the response.</param>
+    /// <returns>Entities in request order, preserving duplicate identifiers and omitting missing members.</returns>
+    /// <remarks>Uses a bounded read-only Lua script. Ranks refer to the entire leaderboard rather than only the selected members. Legacy entries without metadata use the same fallback as <see cref="GetEntityAsync"/>.</remarks>
+    /// <exception cref="ArgumentNullException">The collection or a required key is null.</exception>
+    /// <exception cref="ArgumentException">The collection or a key is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The collection exceeds the batch limit or a numeric key is nonpositive.</exception>
+    /// <exception cref="KeyNotFoundException">The ranking type is unsupported.</exception>
+    /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
+    Task<TEntity[]> GetEntitiesByKeysAsync(RedisValue leaderboardKey, IEnumerable<RedisValue> entityKeys,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns a numbered page together with total leaderboard membership.</summary>
+    /// <param name="leaderboardKey">The leaderboard identifier.</param>
+    /// <param name="pageNumber">The one-based page number.</param>
+    /// <param name="pageSize">The number of physical member positions, between one and 10,000.</param>
+    /// <param name="rankingType">The algorithm used for displayed ranks.</param>
+    /// <param name="cancellationToken">Cancels before execution or while mapping the response.</param>
+    /// <returns>A page and authoritative ranking-set total from the same snapshot.</returns>
+    /// <remarks>Pages use physical positions even when displayed ranks tie. A page beyond the end is empty but retains the total. Bounded response size limits Redis script time and allocations.</remarks>
+    /// <exception cref="ArgumentNullException">The leaderboard identifier is null.</exception>
+    /// <exception cref="ArgumentException">The leaderboard identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A key, page number, or page size is outside its supported range.</exception>
+    /// <exception cref="KeyNotFoundException">The ranking type is unsupported.</exception>
+    /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
+    Task<LeaderboardPage<TEntity>> GetPageAsync(RedisValue leaderboardKey, int pageNumber, int pageSize,
+        RankingType rankingType = RankingType.Default, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets or removes expiry for all existing leaderboard structures atomically.</summary>
+    /// <param name="leaderboardKey">The leaderboard identifier.</param>
+    /// <param name="expiry">The lifetime rounded up to milliseconds; null removes expiry and zero deletes the board.</param>
+    /// <param name="cancellationToken">Cancels before Redis execution.</param>
+    /// <returns>True when at least one key had its expiry applied or removed; false when no key changed.</returns>
+    /// <remarks>All existing keys receive one deadline based on Redis server time. Missing keys are never created. Writes preserve existing key TTLs, but keys created later do not inherit an earlier expiry; apply expiry after populating a seasonal board. Uses Redis <see href="https://redis.io/docs/latest/commands/pexpireat/">PEXPIREAT</see> in one Lua script.</remarks>
+    /// <exception cref="ArgumentNullException">The leaderboard identifier is null.</exception>
+    /// <exception cref="ArgumentException">The leaderboard identifier is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A numeric key is nonpositive or expiry is negative.</exception>
+    /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
+    Task<bool> ExpireAsync(RedisValue leaderboardKey, TimeSpan? expiry, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Adds an entity to a leaderboard.

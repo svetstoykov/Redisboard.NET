@@ -7,7 +7,16 @@ local startIndex = ARGV[3]
 local endIndex = ARGV[4]
 local members
 
-if query == 'neighbors' then
+if query == 'keys' then
+    members = {}
+    for i = 3, #ARGV do
+        local score = redis.call('ZSCORE', leaderboard, ARGV[i])
+        if score then
+            table.insert(members, ARGV[i])
+            table.insert(members, score)
+        end
+    end
+elseif query == 'neighbors' then
     local targetIndex = redis.call('ZRANK', leaderboard, startIndex)
     if not targetIndex then return {} end
     local offset = tonumber(endIndex)
@@ -32,8 +41,12 @@ for i = 1, #members, 2 do
     local score = members[i + 1]
     local rank
     if ranking == 1 then
-        rank = tonumber(startIndex) + (i + 1) / 2
-    elseif score == previousScore then
+        if query == 'keys' then
+            rank = redis.call('ZRANK', leaderboard, member) + 1
+        else
+            rank = tonumber(startIndex) + (i + 1) / 2
+        end
+    elseif query ~= 'keys' and score == previousScore then
         rank = previousRank
     elseif ranking == 2 then
         rank = redis.call('ZRANK', uniqueScores, score) + 1
@@ -47,4 +60,5 @@ for i = 1, #members, 2 do
     table.insert(result, { member, rank, score, redis.call('HGET', metadata, member) })
 end
 
+if query == 'page' then return { result, redis.call('ZCARD', leaderboard) } end
 return result

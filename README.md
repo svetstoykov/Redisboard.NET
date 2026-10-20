@@ -242,6 +242,32 @@ members: `IncrementEntityScoreAsync`, `DecrementEntityScoreAsync`,
 intentional compatibility change from 1.0.3. Package validation suppresses only the corresponding
 member-specific CP0006 diagnostics for both target frameworks; other compatibility checks remain active.
 
+## Entity lookups, pages, and expiry
+
+```cs
+var player = await leaderboard.GetEntityAsync(leaderboardKey, "player1", RankingType.DenseRank);
+var friends = await leaderboard.GetEntitiesByKeysAsync(
+    leaderboardKey, ["player3", "player1", "missing"], RankingType.DenseRank);
+var page = await leaderboard.GetPageAsync(leaderboardKey, pageNumber: 3, pageSize: 20);
+Console.WriteLine($"{page.Entities.Length} rows of {page.TotalCount}");
+
+await leaderboard.ExpireAsync(leaderboardKey, TimeSpan.FromDays(7));
+await leaderboard.ExpireAsync(leaderboardKey, null); // Remove expiry.
+```
+
+Each read returns payloads, current scores, and global ranks from one Redis snapshot.
+A missing single entity returns `null`. Batch lookups preserve request order and duplicate
+keys, omit missing members, and accept 1–10,000 keys. Pages use one-based page numbers
+and physical positions, so ties never change page size; displayed ranks still use the
+requested ranking mode. Page size is limited to 10,000. Empty pages retain the total
+count of ranked members, including legacy entries whose metadata is missing.
+
+Expiry applies one server-time deadline to all existing structures in one atomic script.
+`null` removes expiry; zero deletes the board; negative durations are rejected. Positive
+lifetimes round up to milliseconds. Missing boards are not created. Writes retain each
+existing key’s TTL, but newly created keys do not inherit a previously set deadline.
+Populate seasonal boards before setting expiry, and reapply expiry after recreating keys.
+
 ## Entity Requirements
 
 ### MemoryPack Serialization

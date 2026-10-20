@@ -23,6 +23,9 @@ internal static class LeaderboardScript
     /// KEYS: leaderboard and unique scores. ARGV: member and ranking type (2, 3, or 4).
     /// Returns the one-based rank, or false when the member does not exist.
     /// </remarks>
+    private static readonly Lazy<LuaScript> Expire =
+        new(() => LuaScript.Prepare(LoadLuaScript("expire_leaderboard.lua")));
+
     private static readonly Lazy<LuaScript> EntityRank =
         new(() => LuaScript.Prepare(LoadLuaScript("get_entity_rank.lua")));
 
@@ -73,6 +76,10 @@ internal static class LeaderboardScript
     /// <summary>Gets the prepared script for atomic entity reads.</summary>
     /// <returns>A read-only script that returns ranking data and metadata together.</returns>
     public static LuaScript ForEntities() => Entities.Value;
+
+    /// <summary>Gets the script for expiring all leaderboard structures together.</summary>
+    /// <returns>The prepared expiry script.</returns>
+    public static LuaScript ForExpire() => Expire.Value;
 
     /// <summary>Gets the prepared script for atomic rank-only reads.</summary>
     /// <returns>A read-only script that returns a rank without fetching metadata.</returns>
