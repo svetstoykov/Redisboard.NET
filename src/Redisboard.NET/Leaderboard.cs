@@ -94,6 +94,10 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// score set, and stores serialized entity metadata in the leaderboard hash.
     /// </para>
     /// <para>
+    /// If the entity key already exists, its score and metadata are replaced. A previous score remains in
+    /// the auxiliary set only while at least one entity still holds it, preserving <see cref="RankingType.DenseRank"/>.
+    /// </para>
+    /// <para>
     /// Entity keys and scores are validated before serialization. Scores are negated before persistence so the
     /// highest score appears first when Redis returns ascending sorted set results.
     /// </para>
@@ -146,6 +150,11 @@ public class Leaderboard<TEntity> : ILeaderboard<TEntity>
     /// <remarks>
     /// <para>
     /// Batch writes reduce Redis round trips by sending all entity triplets through one Lua script execution.
+    /// </para>
+    /// <para>
+    /// Existing entity keys have their scores and metadata replaced. Entries are applied in enumeration order;
+    /// the last entry for a repeated key supplies its final score and metadata. Score groups abandoned by
+    /// replaced entries are removed so <see cref="RankingType.DenseRank"/> remains correct.
     /// </para>
     /// <para>
     /// The batch must contain at least one entity and no more than <see cref="DefaultMaxBatchOperationSize"/> items.

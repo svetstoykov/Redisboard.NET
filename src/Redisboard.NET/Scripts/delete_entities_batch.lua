@@ -13,7 +13,7 @@ for i = 1, #ARGV do
   if scoreStr ~= false then
     local countWithScore = redis.call('ZCOUNT', leaderboardKey, scoreStr, scoreStr)
     if countWithScore == 0 then
-      redis.call('ZREM', uniqueScoreKey, scoreStr)
+      redis.call('ZREMRANGEBYSCORE', uniqueScoreKey, scoreStr, scoreStr)
     end
   end
 end
