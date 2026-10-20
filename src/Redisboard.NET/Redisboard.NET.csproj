@@ -53,6 +53,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <EmbeddedResource Include="Scripts\mutate_entity_score.lua" />
         <None Remove="Scripts\get_entities.lua" />
         <EmbeddedResource Include="Scripts\get_entities.lua" />
         <None Remove="Scripts\get_entity_rank.lua" />
