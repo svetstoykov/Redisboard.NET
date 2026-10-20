@@ -81,6 +81,23 @@ public class ReadAndExpiryTests(LeaderboardFixture fixture) : LeaderboardTestBas
         foreach (var key in keys) Assert.Null(await db.KeyTimeToLiveAsync(key));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ScoreReplacement_PreservesExpiryWhenOnlyScoreGroupChanges(bool upsert)
+    {
+        await SeedAsync([("a", 100)]);
+        await Leaderboard.ExpireAsync(Key, TimeSpan.FromMinutes(5));
+        using var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+        var db = connection.GetDatabase(9);
+        var deadline = await db.KeyExpireTimeAsync(CacheKey.ForUniqueScoreSortedSet(Key));
+
+        if (upsert) await Leaderboard.AddEntityAsync(Key, new Player { Id = "a", Score = 200 });
+        else await Leaderboard.UpdateEntityScoreAsync(Key, "a", 200);
+
+        Assert.Equal(deadline, await db.KeyExpireTimeAsync(CacheKey.ForUniqueScoreSortedSet(Key)));
+    }
+
     [Fact]
     public async Task ExpireAsync_ZeroDeletesAllStructures()
     {

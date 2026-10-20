@@ -10,6 +10,7 @@ end
 
 redis.call('ZADD', sortedSetCacheKey, newScore, memberId)
 local newScoreStr = redis.call('ZSCORE', sortedSetCacheKey, memberId)
+redis.call('ZADD', uniqueScoresSortedSetCacheKey, newScoreStr, newScoreStr)
 
 if currentScoreStr ~= false and currentScoreStr ~= newScoreStr then
     local countWithCurrentScore = redis.call('ZCOUNT', sortedSetCacheKey, currentScoreStr, currentScoreStr)
@@ -18,6 +19,5 @@ if currentScoreStr ~= false and currentScoreStr ~= newScoreStr then
     end
 end
 
-redis.call('ZADD', uniqueScoresSortedSetCacheKey, newScoreStr, newScoreStr)
 
 return redis.call('ZRANK', uniqueScoresSortedSetCacheKey, newScoreStr) + 1
