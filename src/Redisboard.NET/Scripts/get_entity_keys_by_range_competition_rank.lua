@@ -1,9 +1,8 @@
 local sortedSetCacheKey = KEYS[1]
-local startIndex = tonumber(ARGV[1])
-local pageSize = tonumber(ARGV[2])
+-- Preserve integer precision beyond the exact range of Lua numbers.
+local startIndex = ARGV[1]
+local endIndex = ARGV[2]
 local competitionType = tonumber(ARGV[3])
-
-local endIndex = startIndex + pageSize - 1
 
 local membersWithScores = redis.call('ZRANGE', sortedSetCacheKey, startIndex, endIndex, 'WITHSCORES')
 

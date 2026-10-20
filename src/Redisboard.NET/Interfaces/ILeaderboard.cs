@@ -30,7 +30,7 @@ public interface ILeaderboard<TEntity>
     /// Adds an entity to a leaderboard.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score.</param>
+    /// <param name="entity">Entity to add. Its configured key and score properties supply the Redis member identifier and ranking score. The score must be finite and non-negative.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -50,7 +50,7 @@ public interface ILeaderboard<TEntity>
     /// Adds multiple entities to a leaderboard in one batch operation.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard whose ranking and metadata structures should receive <paramref name="entities"/>.</param>
-    /// <param name="entities">Entities to add. Each entry must provide a valid key and non-negative score.</param>
+    /// <param name="entities">Entities to add. Each entry must provide a valid key and finite, non-negative score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -75,7 +75,7 @@ public interface ILeaderboard<TEntity>
     /// Updates the score of an existing entity without rewriting its metadata.
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains <paramref name="entity"/>.</param>
-    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the replacement score.</param>
+    /// <param name="entity">Entity whose configured key identifies the stored member and whose score property contains the finite, non-negative replacement score.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
@@ -93,7 +93,7 @@ public interface ILeaderboard<TEntity>
     /// </summary>
     /// <param name="leaderboardKey">Identifies leaderboard that contains the entity.</param>
     /// <param name="entityKey">Identifies the entity whose score should be updated.</param>
-    /// <param name="score">Replacement score. Cannot be negative.</param>
+    /// <param name="score">Replacement score. Must be finite and non-negative.</param>
     /// <param name="fireAndForget">When <see langword="true"/>, sends the write without waiting for Redis to acknowledge completion.</param>
     /// <param name="cancellationToken">Cancels operation before Redis script execution begins.</param>
     /// <remarks>
